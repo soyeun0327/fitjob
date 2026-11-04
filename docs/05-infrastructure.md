@@ -13,6 +13,7 @@
 | 변경 | API 키 시크릿 내용: 고용24 → 공공데이터포털 인증키(ADR-013) (2026-11-03) |
 | 변경 | 8.3 S3 Vectors 인덱스의 필터 불가 키·인덱스 모드 추가 (2026-11-03) |
 | 변경 | 10.4·13.3 Q-06 결과 반영: S3 Vectors·KB는 프로바이더가 지원 (2026-11-04) |
+| 변경 | 5.2 작업용 IAM 사용자와 CLI 자격증명 방식(`aws login --remote`), 11장 체크리스트 진행 표시 (2026-11-04) |
 | 리전 | 서울 `ap-northeast-2` (가용영역 2a, 2c) + CloudFront 인증서용 `us-east-1` |
 | 관련 문서 | [아키텍처](02-architecture.md), [ADR](10-adr.md) |
 
@@ -181,6 +182,8 @@ iptables-save > /etc/sysconfig/iptables
 - OIDC 토큰의 `sub`에는 이벤트 종류(예약 실행, 수동 실행)가 담기지 않는다. `fitjob-gha-env-down`은 `nightly-down` 워크플로에서만 쓰고, 더 좁혀야 하면 전용 GitHub 환경을 만들어 `environment` 조건으로 바꾼다.
 - `bootstrap` 스택은 이 역할들을 만드는 스택이라 CI에서 apply하지 않고 로컬에서만 apply한다.
 - 개인 작업용 IAM 사용자는 MFA 필수, 루트 계정은 MFA만 설정하고 사용하지 않는다.
+- 작업용 사용자는 `soyeun-admin`(`AdministratorAccess`)이다(2026-11-04). 액세스 키는 만들지 않는다. 결제 화면(Budgets, Cost Explorer, 비용 할당 태그)을 볼 수 있게 계정 설정에서 IAM 사용자의 결제 정보 접근을 켰다.
+- CLI 자격증명은 WSL에서 `aws login --remote`로 콘솔 세션의 임시 자격증명을 받는다. WSL에는 Windows 브라우저를 여는 프로그램이 없어서, 브라우저를 자동으로 여는 `aws login`은 끝나지 않는다. `--remote`는 주소를 직접 브라우저에 붙이고 받은 코드를 터미널에 붙이는 방식이다. 세션이 끝나면 같은 명령으로 다시 로그인한다.
 
 ## 6. 비밀정보와 설정
 
@@ -510,8 +513,8 @@ provider "aws" {
 
 | 항목 | 확인 |
 |---|---|
-| 루트 계정 MFA, 액세스 키 없음 | ☐ |
-| 작업용 IAM 사용자 MFA | ☐ |
+| 루트 계정 MFA, 액세스 키 없음 | ☑ (2026-11-04) |
+| 작업용 IAM 사용자 MFA | ☑ (2026-11-04) |
 | 22번 포트 미개방 (모든 SG) | ☐ |
 | 앱·DB 퍼블릭 IP 없음 | ☐ |
 | ALB는 CloudFront 접두사 목록 + 오리진 헤더로만 접근 | ☐ |

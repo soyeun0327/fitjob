@@ -17,6 +17,7 @@
 | 변경 | Phase 0 WSL 개발 환경 행에 설치 스크립트 `scripts/setup-wsl.sh` 연결, 도구 설치는 W0에 끝냄 (2026-11-04) |
 | 변경 | Q-06 확인 결과 반영: Phase 0·2 행, 위험 R-05 (2026-11-04) |
 | 변경 | Phase 0 저장소 행: 모든 텍스트 파일 LF 고정, 공개 저장소로 결정 (2026-11-04) |
+| 변경 | Phase 0 표에 상태 열과 하네스 행 추가, 7장 완료 기록 추가 (2026-11-04) |
 | 가정 | 1인, 주 15~20시간, 2026-11-09(월) 시작, 14주 (콘솔 구축 후 Terraform으로 가져오는 방식이라 Phase 1·3을 1주씩 늘림) |
 
 > 주당 투입 시간이 정해지면 일정을 다시 맞춘다([요구사항 Q-07](01-requirements.md#9-미결-사항-구현-전-확인)).
@@ -29,7 +30,7 @@
 |---|---|
 | 사람인 채용정보 API 키 신청 | 승인까지 시간이 걸릴 수 있음. 2026-11-03 심사 중 |
 | 공공데이터포털 공공기관 채용정보 조회서비스 활용신청 | 고용24는 개인 신청으로 채용정보를 받을 수 없어 대체([ADR-013](10-adr.md#adr-013-두-번째-수집-소스로-공공기관-채용정보-조회서비스를-쓴다)). 2026-11-03 개발 계정 승인, 같은 날 키 활성화 확인(진행 중 공고 527건) |
-| AWS Budgets 월 $100 알림 설정 | 기존 계정은 무료 크레딧이 없음. 지금은 콘솔로 만들고, Phase 1에서 `bootstrap` 스택으로 가져온다(`terraform import`) |
+| AWS Budgets 월 $100 알림 설정 | 기존 계정은 무료 크레딧이 없음. 지금은 콘솔로 만들고, Phase 1에서 `bootstrap` 스택으로 가져온다(`terraform import`). 2026-11-04 만든 것 확인 |
 
 ## 2. 전체 일정
 
@@ -78,17 +79,22 @@ gantt
 
 ### Phase 0 준비 (W1)
 
-| 작업 | 산출물 |
-|---|---|
-| 루트 MFA, 작업용 IAM 사용자(MFA), 비용 할당 태그 활성화 | 보안 체크리스트 일부 완료 |
-| WSL(Ubuntu) 개발 환경: make, Terraform, AWS CLI v2, Session Manager 플러그인 설치, 작업용 IAM 사용자 자격증명을 WSL에 설정. 개발 도구는 WSL에서만 실행한다([하네스 2-1](harness.md#2-1-claude-code-권한--claudesettingsjson)). 도구 설치는 `scripts/setup-wsl.sh`로 2026-11-04에 끝냈다(Terraform 1.17.1, AWS CLI 2.39.3, Session Manager 플러그인 1.2.896.0). 자격증명 설정은 작업용 IAM 사용자를 만든 뒤 한다 | 개발 환경 |
-| GitHub 저장소 생성(공개. 무료 플랜의 비공개 저장소는 `prod` 환경 승인을 쓸 수 없음), 이 문서 세트 커밋. `.gitattributes`와 `.editorconfig`로 모든 텍스트 파일의 줄 끝을 LF로 고정(Windows 방식 CRLF로 바뀌면 WSL bash에서 `$'\r'` 오류, `terraform fmt -check` 실패) | 저장소 |
-| Terraform 기초(provider, resource, variable, output, state, `import` 블록). 연습: S3 버킷 하나를 콘솔로 만들고 import해 `plan` "No changes"까지 맞춘 뒤 Terraform으로 지우기 | 학습 노트 |
-| Bedrock 모델 접근 활성화, 서울 리전에서 Haiku 5.5·임베딩 모델 호출 확인 | Q-03, Q-04 답 |
-| Terraform 프로바이더의 S3 Vectors·KB 지원 확인. 2026-11-04에 끝냈다(프로바이더 6.71.0이 지원) | Q-06 답 |
-| S3 Vectors를 쓰는 KB의 필터 실측: 목록 필터(`listContains`·`equals`·`in`), `andAll`·`orAll` 조건 6개와 2단계 중첩, 키가 없는 문서, 빈 목록(`[]`) 메타데이터(받아주는지, 목록 필터에서 빠지는지). 테스트 문서 10개로 하고 리소스는 같은 날 지운다(비용 1센트 미만). 문서 확인 결과는 [API 명세 5.2](04-api-spec.md#52-조건--필터-변환) | Q-05 답, 필터 구조 확정 |
+2026-11-04에 앞당겨 시작했다. 끝낸 작업은 [7장 완료 기록](#7-완료-기록)에도 남긴다.
+
+| 작업 | 산출물 | 상태 (2026-11-04) |
+|---|---|---|
+| 루트 MFA, 작업용 IAM 사용자(MFA), 비용 할당 태그 활성화 | 보안 체크리스트 일부 완료 | 루트 MFA, 루트 액세스 키 없음, 작업용 사용자(MFA, 결제 정보 접근 허용) 완료. 비용 할당 태그는 `Project` 태그가 붙은 리소스(import 연습 버킷)가 생긴 뒤 |
+| WSL(Ubuntu) 개발 환경: make, Terraform, AWS CLI v2, Session Manager 플러그인 설치, 작업용 IAM 사용자 자격증명을 WSL에 설정. 개발 도구는 WSL에서만 실행한다([하네스 2-1](harness.md#2-1-claude-code-권한--claudesettingsjson)) | 개발 환경, `scripts/setup-wsl.sh` | 완료. Terraform 1.17.1, AWS CLI 2.39.3, Session Manager 플러그인 1.2.896.0, Docker WSL 연동. 자격증명은 `aws login --remote`로 받는 임시 자격증명이고 액세스 키는 없다([인프라 명세 5.2](05-infrastructure.md#52-cicd-역할-github-oidc)) |
+| GitHub 저장소 생성(공개. 무료 플랜의 비공개 저장소는 `prod` 환경 승인을 쓸 수 없음), 이 문서 세트 커밋. `.gitattributes`와 `.editorconfig`로 모든 텍스트 파일의 줄 끝을 LF로 고정(Windows 방식 CRLF로 바뀌면 WSL bash에서 `$'\r'` 오류, `terraform fmt -check` 실패) | 저장소 | 완료. [soyeun0327/fitjob](https://github.com/soyeun0327/fitjob). OIDC 신뢰 조건이 대소문자를 구분해 저장소 이름은 소문자로 맞췄다. `main` 브랜치 보호는 설정 예정 |
+| 하네스 Phase 0: 권한 설정, 문서 링크 검사 스크립트와 `*.md` 훅([하네스 7](harness.md#7-단계별-구축-순서)) | `.claude/settings.json`, `scripts/check_doc_links.py` | 완료 |
+| Terraform 기초(provider, resource, variable, output, state, `import` 블록). 연습: S3 버킷 하나를 콘솔로 만들고 import해 `plan` "No changes"까지 맞춘 뒤 Terraform으로 지우기 | 학습 노트 | 남음 |
+| Bedrock 모델 접근 활성화, 서울 리전에서 Haiku 5.5·임베딩 모델 호출 확인 | Q-03, Q-04 답 | 남음 |
+| Terraform 프로바이더의 S3 Vectors·KB 지원 확인 | Q-06 답 | 완료. 프로바이더 6.71.0이 지원 |
+| S3 Vectors를 쓰는 KB의 필터 실측: 목록 필터(`listContains`·`equals`·`in`), `andAll`·`orAll` 조건 6개와 2단계 중첩, 키가 없는 문서, 빈 목록(`[]`) 메타데이터(받아주는지, 목록 필터에서 빠지는지). 테스트 문서 10개로 하고 리소스는 같은 날 지운다(비용 1센트 미만). 문서 확인 결과는 [API 명세 5.2](04-api-spec.md#52-조건--필터-변환) | Q-05 답, 필터 구조 확정 | 남음. Q-04(임베딩 모델) 다음에 한다 |
 
 **완료 기준:** Budgets 알림 메일 수신 확인, 미결 사항 Q-03~Q-06 답을 요구사항 문서에 기록, WSL에서 `make --version`·`terraform version`·`aws sts get-caller-identity` 성공
+
+- 2026-11-04 현재: WSL 명령 3개 성공(`soyeun-admin`, `ap-northeast-2`), Q-06 기록. 남은 것은 Budgets 알림 메일 확인과 Q-03~Q-05다.
 
 ### Phase 1 기반 인프라 (W2~4)
 
@@ -223,3 +229,16 @@ gantt
 | R-08 | 콘솔로 만든 리소스 정리 누락·비용 | 중 | 낮음 | `ManagedBy=console` 태그를 붙이고, 시간당 과금 리소스는 만든 날 import하거나 직접 삭제, 매주 태그로 남은 리소스 확인 |
 | R-09 | import가 어려운 리소스 | 중 | 낮음 | 마법사 대신 리소스를 하나씩 만들기, 자동 생성 리소스 목록 확인([인프라 명세 13.2](05-infrastructure.md#132-콘솔-단계-규칙)), 미지원 리소스는 CLI 스크립트 |
 | R-10 | S3 Vectors를 쓰는 KB가 목록 필터나 조건 6개 이상을 지원하지 않음 | 중 | 중 | Phase 0 실측. 안 되면 순서대로 검토한다: `in`으로 바꾸고 조건을 5개씩 묶기 → 일부 조건은 RDS 재확인에만 두고 KB 후보 수 늘리기 → KB를 거치지 않고 S3 Vectors `QueryVectors` 직접 호출. 그래도 조건 위반이 생기면 pgvector 재검토([ADR-002](10-adr.md#adr-002-벡터-저장소로-bedrock-knowledge-base--s3-vectors를-쓴다) 재검토 조건) |
+
+## 7. 완료 기록
+
+로드맵 표의 작업을 끝내면 여기에 남긴다. CLAUDE.md를 100줄 안으로 유지하려고 CLAUDE.md 대신 이 문서에 둔다. 콘솔에서만 한 작업은 커밋 칸을 비운다.
+
+| 날짜 | Phase | 작업 | 커밋 |
+|---|---|---|---|
+| 2026-11-04 | 0 | 저장소 기본 설정: `.gitattributes`·`.editorconfig`(LF 고정), `.gitignore` | `46c5365` |
+| 2026-11-04 | 0 | WSL 개발 도구 설치 스크립트와 설치(make, Terraform, AWS CLI, Session Manager 플러그인) | `c8d2452` |
+| 2026-11-04 | 0 | 하네스 Phase 0: `.claude/settings.json` 권한, 문서 링크 검사 스크립트와 `*.md` 훅 | `a0892f7` |
+| 2026-11-04 | 0 | 설계 문서 세트 v0.2 커밋, Q-06 확인, GitHub 공개 저장소 `soyeun0327/fitjob`에 푸시 | `2f41cb4` |
+| 2026-11-04 | 0 | 계정 보안: 루트 MFA, 작업용 IAM 사용자(MFA, 결제 정보 접근 허용) | (콘솔) |
+| 2026-11-04 | 0 | WSL AWS 자격증명: `aws login --remote`, `aws sts get-caller-identity` 성공 | (설정) |
