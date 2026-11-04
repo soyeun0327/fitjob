@@ -18,11 +18,11 @@
 - 웹 UI: docs/design-system/README.md (Wanted Design System. React로 구현할 때 montage-react 스킬 참고)
 
 ## 현재 단계: Phase 0 준비 진행 중 (2026-11-04 앞당겨 시작)
-- 설계 문서 01~10 v0.2 완료. 코드 없음. 로컬 git 저장소(`main`, 커밋 전), GitHub 저장소는 공개로 만들 예정.
+- 설계 문서 01~10 v0.2 완료. 코드 없음. 공개 저장소 github.com/soyeun0327/fitjob (`main` 보호 설정 예정).
 - W0: 사람인 API 심사 중, 공공기관 채용정보 API 키 활성화됨(2026-11-03, 코드 매핑 → DB 스키마 7.1, ADR-013), AWS Budgets 월 $100 알림 만듦(Phase 1에서 import)
-- Phase 0 진행: WSL 도구 설치, Q-06 확인, 하네스 Phase 0(권한·링크 검사 훅) 끝. 남은 것: 계정 보안, `aws login`, GitHub push, import 연습, Q-03·Q-04·Q-05
+- Phase 0 끝낸 것: 계정 보안, WSL 도구와 `aws login --remote`(`soyeun-admin`), 저장소·하네스, Q-06. 남은 것: import 연습, Q-03·Q-04·Q-05, Budgets 메일 확인
 - 전체 일정 14주 (2026-11-09 ~ 2027-02-14). 단계별 작업과 완료 기준은 docs/09-roadmap.md
-- 진행하면서 아래에 완료 기록을 남긴다 (형식: `Phase N 작업 — 완료 <커밋> (날짜)`)
+- 작업을 끝내면 docs/09-roadmap.md 7장 완료 기록에 날짜·작업·커밋을 남긴다
 
 ## 설계 원칙 (어기면 안 되는 것)
 - **하드 조건은 필터로.** 경력·지역·직무·고용형태·학력·마감은 KB 메타데이터 필터와 RDS 재확인으로 거른다. 벡터 유사도나 LLM 판단에 맡기지 않는다 (ADR-003)

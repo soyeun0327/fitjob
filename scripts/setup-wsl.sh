@@ -7,7 +7,8 @@
 #   Windows 셸:    wsl -u root -e bash scripts/setup-wsl.sh
 #   WSL 터미널:    sudo bash scripts/setup-wsl.sh
 # 이미 설치된 도구는 건너뛰므로 여러 번 실행해도 된다.
-# AWS 자격증명은 설정하지 않는다. 작업용 IAM 사용자를 만든 뒤 사용자가 직접 한다.
+# AWS 자격증명은 설정하지 않는다. 설치 후 사용자가 WSL 터미널에서 직접 한다:
+#   aws login --remote   (WSL에는 브라우저를 여는 프로그램이 없어 --remote가 필요, 리전은 ap-northeast-2)
 
 set -euo pipefail
 

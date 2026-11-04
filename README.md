@@ -86,4 +86,4 @@ flowchart LR
 | 설계 문서 | 01~10 v0.2 완료. 코드는 아직 없다 |
 | 수집 소스 | 공공데이터포털 공공기관 채용정보 API 키 활성화(2026-11-03, 진행 중 공고 527건 확인). 사람인 API는 심사 중 |
 | 개발 환경 | WSL(Ubuntu 24.04)에 make·Terraform·AWS CLI·Session Manager 플러그인 설치, Docker WSL 연동 확인(2026-11-04) |
-| 진행 중 | [Phase 0 준비](docs/09-roadmap.md#phase-0-준비-w1)를 2026-11-04에 앞당겨 시작. Q-06 확인(Terraform이 S3 Vectors·KB 지원), 하네스 권한·링크 검사 훅 적용. 남은 것: 계정 보안, GitHub 저장소, Terraform import 연습, Q-03·Q-04·Q-05 |
+| 진행 중 | [Phase 0 준비](docs/09-roadmap.md#phase-0-준비-w1)를 2026-11-04에 앞당겨 시작. 끝낸 것: 계정 보안(루트·작업용 사용자 MFA), WSL에서 AWS CLI 로그인, 이 저장소와 하네스(권한 설정·문서 링크 검사 훅), Q-06(Terraform이 S3 Vectors·KB 지원). 남은 것: Terraform import 연습, Q-03·Q-04·Q-05. 기록은 [완료 기록](docs/09-roadmap.md#7-완료-기록) |
