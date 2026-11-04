@@ -1,0 +1,44 @@
+# 비밀값·로컬 설정 — 커밋하지 않는다 (CLAUDE.md 설계 원칙)
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# Terraform — state에는 비밀값이 들어간다. .terraform.lock.hcl은 커밋한다
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node·웹 빌드
+node_modules/
+dist/
+
+# Lambda 패키지 등 빌드 산출물
+*.zip
+build/
+
+# OS·편집기
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

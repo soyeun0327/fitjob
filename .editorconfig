@@ -1,0 +1,16 @@
+# 편집기가 저장할 때도 LF·UTF-8을 쓰게 한다(.gitattributes와 같은 규칙).
+# IntelliJ는 기본 지원, VS Code·Cursor는 EditorConfig 확장이 필요하다.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# 마크다운의 줄 끝 공백 2개는 줄바꿈 문법이라 지우지 않는다
+trim_trailing_whitespace = false
+
+[{Makefile,*.mk}]
+indent_style = tab
