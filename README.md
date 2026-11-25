@@ -73,8 +73,8 @@ flowchart LR
 | [06. CI/CD](docs/06-cicd.md) | 워크플로, 품질 게이트, OIDC, 배포·롤백 |
 | [07. 테스트 전략](docs/07-test-plan.md) | 데이터 품질 규칙, RAG 평가, 부하 테스트, 장애 훈련 |
 | [08. 운영](docs/08-operations.md) | SLO, 대시보드, 알람, 런북, 백업, 보고서 양식 |
-| [09. 로드맵](docs/09-roadmap.md) | 14주 일정, 단계별 완료 기준, 위험 관리 |
-| [10. ADR](docs/10-adr.md) | 아키텍처 결정 기록 13건 |
+| [09. 로드맵](docs/09-roadmap.md) | 16주 일정, 단계별 완료 기준, 위험 관리 |
+| [10. ADR](docs/10-adr.md) | 아키텍처 결정 기록 14건 |
 | [하네스](docs/harness.md) | Claude Code 권한·훅·검증 규칙, 단계별 구축 순서 |
 
 ## 현재 상태
@@ -86,4 +86,4 @@ flowchart LR
 | 설계 문서 | 01~10 v0.2 완료. 코드는 아직 없다 |
 | 수집 소스 | 공공데이터포털 공공기관 채용정보 API 키 활성화(2026-11-03, 진행 중 공고 527건 확인). 사람인 API는 심사 중 |
 | 개발 환경 | WSL(Ubuntu 24.04)에 make·Terraform·AWS CLI·Session Manager 플러그인 설치, Docker WSL 연동 확인(2026-11-04) |
-| 진행 중 | [Phase 0 준비](docs/09-roadmap.md#phase-0-준비-w1)를 2026-11-04에 앞당겨 시작. 끝낸 것: 계정 보안(루트·작업용 사용자 MFA), WSL에서 AWS CLI 로그인, 이 저장소와 하네스(권한 설정·문서 링크 검사 훅), Q-06(Terraform이 S3 Vectors·KB 지원). 남은 것: Terraform import 연습, Q-03·Q-04·Q-05. 기록은 [완료 기록](docs/09-roadmap.md#7-완료-기록) |
+| 진행 중 | [Phase 0 준비](docs/09-roadmap.md#phase-0-준비-w13)를 2026-11-04에 앞당겨 시작, 11/29까지로 늘림(전체 16주). 끝낸 것: 계정 보안(루트·작업용 사용자 MFA), WSL에서 AWS CLI 로그인, 이 저장소와 하네스(권한 설정·문서 링크 검사 훅), Q-04(임베딩 모델), Q-06(Terraform이 S3 Vectors·KB 지원), Q-03 결정(LLM 글로벌 추론 프로필, ADR-014), AWS Budgets 알림 메일 확인, Q-05(S3 Vectors KB 필터 실측). 남은 것: Terraform import 연습, 비용 할당 태그 활성화, Q-03 호출 확인. 기록은 [완료 기록](docs/09-roadmap.md#7-완료-기록) |

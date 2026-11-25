@@ -10,6 +10,8 @@
 | 변경 | 콘솔 구축 후 Terraform으로 가져오는 방식(ADR-012), 일정 14주 (2026-11-02) |
 | 변경 | Phase 2 DB 접속용 임시 EC2 추가 (2026-11-03) |
 | 변경 | 두 번째 소스를 공공기관 채용정보 조회서비스로 변경(ADR-013) (2026-11-03) |
+| 변경 | LLM 호출 경로(글로벌 교차 리전 추론 프로필, ADR-014). 11.2 일정 16주로 주차·총액 갱신 (2026-11-24) |
+| 변경 | 5장 KB 동기화: 작업이 `COMPLETE`여도 실패 문서가 있으면 실패로 처리(Q-05 실측) (2026-11-25) |
 | 관련 문서 | [인프라 명세](05-infrastructure.md), [ADR](10-adr.md) |
 
 > 다이어그램은 Mermaid로 작성했다. GitHub에서 바로 렌더링된다. 포트폴리오용 이미지는 구현 후 AWS 아이콘으로 다시 그린다.
@@ -85,7 +87,7 @@ flowchart LR
         s3data[("S3 데이터 버킷<br/>raw, staging, kb")]
         kb["Bedrock Knowledge Base"]
         vec[("S3 Vectors 인덱스")]
-        llm["Bedrock LLM<br/>Claude Haiku 5.5"]
+        llm["Bedrock LLM<br/>Claude Haiku 5.5<br/>글로벌 추론 프로필"]
         ecr["ECR"]
         cw["CloudWatch"]
         sns["SNS 알림"]
@@ -177,8 +179,8 @@ flowchart TD
     s --> w["60초 대기"]
     w --> g["동기화 상태 확인<br/>GetIngestionJob"]
     g -->|"진행 중"| w
-    g -->|"완료"| f["마무리 Lambda VPC<br/>실행 결과 기록, 보존기간 지난 채팅 삭제"]
-    g -->|"실패"| fail
+    g -->|"완료, 실패 문서 0건"| f["마무리 Lambda VPC<br/>실행 결과 기록, 보존기간 지난 채팅 삭제"]
+    g -->|"실패, 또는 완료지만 실패 문서 있음"| fail
     l -.->|"실패"| fail
     fail["실패 처리<br/>실행 기록, SNS 알림"]
 ```
@@ -188,7 +190,7 @@ flowchart TD
 | 수집 | Lambda, VPC 밖 | 외부 API → `s3://.../raw/{source}/dt={날짜}/` | 지수 백오프 3회 재시도 |
 | 정규화 | Lambda, VPC 밖 | `raw/` → `staging/`(정상), `quarantine/`(규칙 위반) | 재시도 2회 |
 | 적재 | Lambda, VPC 안 | `staging/` → RDS, `kb/postings/` | 재시도 2회, 트랜잭션 단위 커밋 |
-| KB 동기화 | Step Functions SDK 통합 | `kb/` → S3 Vectors | 상태 폴링, 실패 시 알림 |
+| KB 동기화 | Step Functions SDK 통합 | `kb/` → S3 Vectors | 상태 폴링, 실패 시 알림. 작업이 `COMPLETE`여도 `statistics.numberOfDocumentsFailed`가 0보다 크면 실패로 본다. 메타데이터가 잘못된 문서는 작업을 멈추지 않고 건너뛰기 때문이다(Q-05 실측). 개수는 `ingestion_runs.kb_docs_failed`에 남긴다 |
 | 마무리 | Lambda, VPC 안 | 실행 결과 → `ingestion_runs` | 실패해도 서비스 영향 없음, 알림 |
 
 설계 포인트:
@@ -292,7 +294,7 @@ flowchart LR
 | 데이터 | 객체 저장소 | S3 | 데이터 버킷(raw, staging, quarantine, kb) | storage |
 | AI | RAG | Bedrock Knowledge Base | S3 데이터 소스, 분할 없음(공고 1건 = 문서 1개) | storage |
 | AI | 벡터 저장소 | S3 Vectors | 1024차원, 코사인 거리 | storage |
-| AI | LLM | Bedrock | Claude Haiku 5.5 | 해당 없음(모델 접근만 활성화) |
+| AI | LLM | Bedrock | Claude Haiku 5.5. 서울에서는 글로벌 교차 리전 추론 프로필 `global.anthropic.claude-haiku-5-5`로만 호출되며, 요청이 한국 밖에서 처리될 수 있다([ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다)) | 해당 없음(Anthropic 사용 사례 양식 제출만) |
 | 파이프라인 | 스케줄 | EventBridge Scheduler | 매일 05:00 Asia/Seoul, `schedule_mode`로 모드 지정(개발 `collect_only`, 운영 `full`) | pipeline |
 | 파이프라인 | 오케스트레이션 | Step Functions | 표준 워크플로, `full`·`collect_only`·`replay` 모드 | pipeline |
 | 파이프라인 | 작업 | Lambda | 수집, 정규화(VPC 밖), 적재, 마무리(VPC 안) | pipeline |
@@ -365,15 +367,15 @@ flowchart LR
 
 | 기간 | 단계 | 운영 방식 | 월 예상 |
 |---|---|---|---|
-| W1~4 | 준비, 기반 인프라 | 상시 스택만, `nat`는 작업할 때만 | 약 $5 |
-| W5~6 | 데이터 파이프라인 | RDS 상시, `nat`(DB 접속용 임시 EC2 포함)는 작업할 때만 | 약 $25~30 |
-| W7~11 | API·웹, CI/CD, 관측·보안 | 하루 4시간 작업 기준 온디맨드 | 약 $15~35 (RDS를 같이 끄면 $15, 계속 켜두면 $35) |
-| W12~14 | 운영·검증, 정리 | 24시간 운영, 앱 서버 1대 | 약 $82~91 (VPC 오리진 전환 시 약 $75~84) |
-| **14주 총액** | | | **약 $90~135** |
+| W1~6 | 준비, 기반 인프라 | 상시 스택만, `nat`는 작업할 때만 | 약 $5 |
+| W7~8 | 데이터 파이프라인 | RDS 상시, `nat`(DB 접속용 임시 EC2 포함)는 작업할 때만 | 약 $25~30 |
+| W9~13 | API·웹, CI/CD, 관측·보안 | 하루 4시간 작업 기준 온디맨드 | 약 $15~35 (RDS를 같이 끄면 $15, 계속 켜두면 $35) |
+| W14~16 | 운영·검증, 정리 | 24시간 운영, 앱 서버 1대 | 약 $82~91 (VPC 오리진 전환 시 약 $75~84) |
+| **16주 총액** | | | **약 $90~135** |
 
 - 운영 단계 비용은 11.1의 24시간 합계에서 앱 서버 1대분(EC2 + EBS 약 $12)을 뺀 값이다. 범위는 Bedrock 사용량($1~10) 차이다.
-- 14주 총액의 계산값은 약 $90~120이다. 부하 테스트·장애 훈련 기간의 앱 서버 2대 운영과 Bedrock 사용량 변동을 고려해 위쪽에 여유를 뒀다.
-- 기존 계획처럼 단계마다 만든 리소스를 24시간 켜두면 14주 총액은 약 $195~210다(W1 약 $0, W2~4 NAT만 월 약 $8, W5~6 RDS 추가 월 약 $35, W7~14 전체 월 $94~103).
+- 16주 총액의 계산값은 약 $92~122다. 처음 14주 계획(약 $90~120)에 Phase 0이 2주 늘어난 몫(상시 스택만, 약 $2)을 더했다. 부하 테스트·장애 훈련 기간의 앱 서버 2대 운영과 Bedrock 사용량 변동을 고려해 위쪽에 여유를 뒀다.
+- 기존 계획처럼 단계마다 만든 리소스를 24시간 켜두면 16주 총액은 약 $195~210다(W1~3 약 $0, W4~6 NAT만 월 약 $8, W7~8 RDS 추가 월 약 $35, W9~16 전체 월 $94~103).
 - 콘솔로 만든 리소스는 Terraform으로 가져오기 전에는 `make down`이 지우지 못하므로, 만든 날 가져오거나 직접 지운다는 전제다([인프라 명세 13.2](05-infrastructure.md#132-콘솔-단계-규칙)).
 
 ### 11.3 절감 수단

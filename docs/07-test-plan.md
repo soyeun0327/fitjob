@@ -7,6 +7,7 @@
 | 변경 | 개발 기간 온디맨드 운영 반영 (2026-11-02) |
 | 변경 | 기존 문제 수정: DB 관리 작업 접속, E2E·보안 회귀 워크플로, RAG 평가 방식 (2026-11-02) |
 | 변경 | 고용형태·직무 배열화에 맞춰 DQ-07·DQ-09 처리와 조건 위반 판정 기준 수정 (2026-11-03) |
+| 변경 | Q-05 실측 반영: DQ-07~09의 빈 목록은 KB 메타데이터에 `UNKNOWN`, 단위 테스트에 KB 문서 생성과 필터 깊이 추가 (2026-11-25) |
 | 관련 문서 | [요구사항](01-requirements.md), [CI/CD](06-cicd.md), [운영](08-operations.md) |
 
 ---
@@ -24,7 +25,7 @@
 
 | 레벨 | 대상 | 도구 | 실행 시점 |
 |---|---|---|---|
-| 단위 | 정규화·중복 판정·필터 변환 로직 | pytest | PR |
+| 단위 | 정규화·중복 판정·필터 변환 로직. KB 문서 생성(메타데이터에 빈 목록 없음), 필터 깊이(`andAll` 안의 `orAll`까지, [API 명세 5.2](04-api-spec.md#52-조건--필터-변환)) | pytest | PR |
 | 계약 | 외부 API 응답 형식 | JSON Schema + 픽스처, 실제 API 1페이지 | PR(픽스처), 매일 수집 시작 시(실제) |
 | 데이터 품질 | 수집 레코드·배치 | 정규화 Lambda 내 규칙 엔진 | 매 수집 |
 | 통합 | API ↔ PostgreSQL, 마이그레이션 | pytest + PostgreSQL 서비스 컨테이너 | PR |
@@ -49,9 +50,9 @@
 | DQ-04 | `CAREER_RANGE_INVALID` | 최대 연차 < 최소 연차 | ERROR | 격리 |
 | DQ-05 | `DEADLINE_IN_PAST` | 마감일이 수집일보다 과거 | WARN | 적재 후 `CLOSED` |
 | DQ-06 | `DEADLINE_TOO_FAR` | 마감일이 1년 넘게 남음 | WARN | 적재 |
-| DQ-07 | `CATEGORY_UNMAPPED` | 직무 코드 매핑 없음 | WARN | 그 코드만 빼고 적재. 남는 게 없으면 `category_ids = {}`(직무 필터 시 제외됨) |
-| DQ-08 | `REGION_UNMAPPED` | 지역을 시·도로 변환 못 함 | WARN | `regions = {}`로 적재(지역 필터 시 제외됨) |
-| DQ-09 | `CODE_UNMAPPED` | 학력·고용형태 코드 매핑 없음 | WARN | 학력은 `ANY`. 고용형태는 그 코드만 빼고, 남는 게 없으면 `employment_types = {}`(고용형태 필터 시 제외됨) |
+| DQ-07 | `CATEGORY_UNMAPPED` | 직무 코드 매핑 없음 | WARN | 그 코드만 빼고 적재. 남는 게 없으면 `category_ids = {}`(직무 필터 시 제외됨), KB 메타데이터는 `["UNKNOWN"]` |
+| DQ-08 | `REGION_UNMAPPED` | 지역을 시·도로 변환 못 함 | WARN | `regions = {}`로 적재(지역 필터 시 제외됨), KB 메타데이터는 `["UNKNOWN"]` |
+| DQ-09 | `CODE_UNMAPPED` | 학력·고용형태 코드 매핑 없음 | WARN | 학력은 `ANY`. 고용형태는 그 코드만 빼고, 남는 게 없으면 `employment_types = {}`(고용형태 필터 시 제외됨), KB 메타데이터는 `["UNKNOWN"]` |
 | DQ-10 | `DUPLICATE_IN_BATCH` | 한 배치에 같은 소스 공고 ID가 여러 번 | WARN | 마지막 것만 사용 |
 | DQ-11 | `TEXT_ENCODING` | 깨진 문자(U+FFFD) 포함 | WARN | 적재 |
 
