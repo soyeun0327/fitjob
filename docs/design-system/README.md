@@ -46,4 +46,4 @@
 | 공고 목록 (FR-S01) | 필터(경력·지역·직무·고용형태·마감·소스), 키워드 검색, 정렬, 공고 카드, 페이지 이동, 로딩 | `6-navigation.png` (Category Chip, Pagination), `3-selection-input.png` (Select, Textfield, Segmented Control), `4-content.png` (Card, Content Badge), `5-loading.png` (Skeleton) |
 | 공고 상세 (FR-S02) | 요약 정보, 출처 배지, 원문 링크 버튼, 다른 소스 링크(`also_on`), 마감 공고 상태 표시 | `4-content.png` (List Cell, Content Badge), `2-action.png` (Button, Text Button) |
 | 채팅 검색 (FR-CH) | 메시지 입력(500자), 결과 카드와 매칭 이유, 적용 조건 칩 삭제·재검색, 0건 시 완화 제안 버튼, 좋아요/싫어요, 응답 대기 | `3-selection-input.png` (Textarea), `2-action.png` (Icon Button, Chip, Toggle Icon), `4-content.png` (Card), `5-loading.png` (Circular Spinner) |
-| 안내·오류 | 개인정보 입력 자제 안내, `DEGRADED` "간단 검색 결과예요" 안내, 429 호출 제한·일일 상한 안내, 피드백 전송 완료 | `7-feedback.png` (Alert, Snackbar, Toast) |
+| 안내·오류 | 개인정보 입력 자제·국외 처리 안내([운영 8](../08-operations.md#8-데이터-보존과-개인정보)), `DEGRADED` "간단 검색 결과예요" 안내, 429 호출 제한·일일 상한 안내, 피드백 전송 완료 | `7-feedback.png` (Alert, Snackbar, Toast) |

@@ -8,13 +8,15 @@
 | 변경 | 기존 문제 수정: DB 관리 작업 접속, E2E·보안 회귀 워크플로, RAG 평가 방식 (2026-11-02) |
 | 변경 | 수집 전용(`collect_only`) 모드 추가, Phase 2 RDS 상시 이유 명시 (2026-11-02) |
 | 변경 | 콘솔 구축 후 Terraform으로 가져오는 방식(ADR-012), 일정 14주 (2026-11-02) |
+| 변경 | 일정 16주로 운영 단계 주차 갱신. RB-07·8장에 글로벌 교차 리전 추론(ADR-014) 반영 (2026-11-24) |
+| 변경 | KB 동기화 실패 알림·RB-04에 "작업은 완료, 실패 문서 있음" 경우 추가(Q-05 실측) (2026-11-25) |
 | 관련 문서 | [아키텍처](02-architecture.md), [인프라 명세](05-infrastructure.md), [테스트 전략](07-test-plan.md) |
 
 ---
 
 ## 1. 서비스 수준 목표 (SLO)
 
-**SLO는 24시간 운영하는 운영 단계(W12~14)에만 적용한다.** 개발 기간에는 온디맨드 스택을 작업할 때만 켜므로 가용성·지연·신선도를 재지 않는다([ADR-011](10-adr.md#adr-011-개발-기간에는-비싼-리소스를-온디맨드로-운영한다)).
+**SLO는 24시간 운영하는 운영 단계(W14~16)에만 적용한다.** 개발 기간에는 온디맨드 스택을 작업할 때만 켜므로 가용성·지연·신선도를 재지 않는다([ADR-011](10-adr.md#adr-011-개발-기간에는-비싼-리소스를-온디맨드로-운영한다)).
 
 | SLI | 정의 | SLO |
 |---|---|---|
@@ -103,7 +105,7 @@ filter chat_status = "DEGRADED"
 | 채팅 대체 응답 증가 | `DegradedResponses` / 채팅 수 | 10분간 20% 초과 | P2 | RB-07 |
 | 수집 실행 실패 | Step Functions `ExecutionsFailed` | 1 이상 | P2 | RB-03 |
 | 수집 미완료 | `PipelineSucceeded` | 24시간 합계 1 미만 (누락은 위반으로 처리) | P2 | RB-03 |
-| KB 동기화 실패 | Step Functions 실패 처리 단계가 SNS로 직접 발행 | 발생 시 | P2 | RB-04 |
+| KB 동기화 실패 | Step Functions 실패 처리 단계가 SNS로 직접 발행 | 작업 실패, 또는 작업은 완료지만 실패 문서 1건 이상 | P2 | RB-04 |
 | RDS 스토리지 부족 | RDS `FreeStorageSpace` | 2GB 미만 | P2 | RB-05 |
 | 비정상 대상 | ALB `UnHealthyHostCount` | 1 이상, 5분 | P3 | RB-02 |
 | 응답 지연 | ALB `TargetResponseTime` p95 | 6초 초과, 10분 | P3 | RB-02 |
@@ -206,7 +208,8 @@ filter chat_status = "DEGRADED"
    aws bedrock-agent get-ingestion-job --knowledge-base-id "$KB_ID" \
      --data-source-id "$DS_ID" --ingestion-job-id "$JOB_ID"
    ```
-2. 문서 형식·메타데이터 오류면 적재 Lambda의 문서 생성 로직을 고친다.
+   상태가 `COMPLETE`여도 `statistics.numberOfDocumentsFailed`가 0보다 크면 일부 문서가 색인되지 않은 것이다. `failureReasons`에 원인과 파일 목록이 있다. 예: 메타데이터에 빈 목록 `[]`이 있으면 "invalid metadata attributes"로 그 문서 전체가 빠진다([DB 스키마 9](03-db-schema.md#9-kb-문서-형식)).
+2. 문서 형식·메타데이터 오류면 적재 Lambda의 문서 생성 로직을 고친다. 실패한 공고는 `kb_synced_hash`를 비워 다음 적재에서 문서를 다시 쓰게 한다.
 3. 동기화 재실행
    ```bash
    aws bedrock-agent start-ingestion-job --knowledge-base-id "$KB_ID" --data-source-id "$DS_ID"
@@ -250,7 +253,7 @@ filter chat_status = "DEGRADED"
    aws ssm put-parameter --name /fitjob/prod/app/reasons_mode --value template --type String --overwrite
    ```
 4. 장애가 길면 채팅은 자동으로 `DEGRADED` 응답을 유지한다. 이때도 결과의 매칭 이유는 템플릿으로 채워진다
-5. 복구 후: 쓰로틀 지표가 30분 이상 0이면 `reasons_mode`를 `llm`으로 되돌린다. 쓰로틀링이 반복되면 할당량 증설이나 교차 리전 추론 프로필 적용을 검토하고, 사유를 ADR에 남긴다
+5. 복구 후: 쓰로틀 지표가 30분 이상 0이면 `reasons_mode`를 `llm`으로 되돌린다. LLM은 이미 글로벌 교차 리전 추론 프로필로 호출한다([ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다)). 그래도 쓰로틀링이 반복되면 할당량 증설을 요청하거나, 서울 안의 Sonnet 5 `ON_DEMAND`로 바꾸는 것을 비용과 함께 검토하고, 사유를 ADR에 남긴다
 
 ### RB-08 make up/down 실패 · 꺼지지 않은 리소스
 
@@ -337,8 +340,8 @@ aws resourcegroupstaggingapi get-resources \
 
 - 보존 기간과 삭제 방법은 [DB 스키마 10](03-db-schema.md#10-보존-정책)을 따른다.
 - 원본 IP는 저장하지 않는다. 로그에도 세션 ID 해시 앞부분만 남긴다.
-- 채팅 입력창에 "이름, 연락처 등 개인정보는 입력하지 마세요" 안내를 둔다.
-- 개인정보 처리방침 페이지에 수집 항목(채팅 내용, IP 해시, 브라우저 정보), 목적, 보존 기간을 적는다.
+- 채팅 입력창에 "이름, 연락처 등 개인정보는 입력하지 마세요. 입력한 내용은 한국 밖 AWS 리전에서 처리될 수 있어요" 안내를 둔다([ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다)).
+- 개인정보 처리방침 페이지에 수집 항목(채팅 내용, IP 해시, 브라우저 정보), 목적, 보존 기간, 채팅 내용의 국외 처리 가능성(Amazon Bedrock 글로벌 교차 리전 추론)을 적는다.
 
 ## 9. 비용 관리
 

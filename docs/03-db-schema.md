@@ -12,6 +12,7 @@
 | 변경 | 공공데이터포털 코드 매핑 확정(7.1). 고용형태·직무를 배열 컬럼(`employment_types`, `category_ids`)으로, `PERMANENT_CONTRACT`(무기계약직)·`IT_GENERAL`(IT 일반) 추가, 경력 연차 미상은 NULL (2026-11-03) |
 | 변경 | 9장에 KB 메타데이터 한도(1KB·키 35개)와 실측 크기, 키 없는 문서 처리 근거 추가 (2026-11-03) |
 | 변경 | 연차 미상 경력 공고의 KB 메타데이터 `career_min_years`를 키 생략에서 표시값 `99`로 변경 (2026-11-04) |
+| 변경 | 9장에 Q-05 실측 결과 반영: 빈 목록은 KB 메타데이터에 표시값 `["UNKNOWN"]`, 숫자는 실수로 저장됨, KB가 더하는 키. 3.6·DDL에 `ingestion_runs.kb_docs_failed` 추가 (2026-11-25) |
 | DBMS | Amazon RDS for PostgreSQL (구현 시 RDS가 지원하는 최신 메이저 버전으로 확정, 15 이상 필수) |
 | 마이그레이션 도구 | Alembic |
 
@@ -235,6 +236,7 @@ erDiagram
 | kb_ingestion_job_id | text | | KB 동기화 작업 ID |
 | kb_sync_status | text | NOT NULL, CHECK | `NOT_STARTED`, `IN_PROGRESS`, `COMPLETE`, `FAILED` |
 | kb_docs_written, kb_docs_deleted | integer | NOT NULL, 기본 0 | KB 문서 쓰기·삭제 건수 |
+| kb_docs_failed | integer | NOT NULL, 기본 0 | KB 동기화에서 색인되지 못한 문서 수(`GetIngestionJob`의 `numberOfDocumentsFailed`). 0보다 크면 작업이 `COMPLETE`여도 `kb_sync_status = FAILED`로 기록한다([9장](#9-kb-문서-형식)) |
 | error_message | text | | |
 
 ### 3.7 `ingestion_source_stats` — 실행별 소스 결과
@@ -458,6 +460,7 @@ CREATE TABLE ingestion_runs (
         CHECK (kb_sync_status IN ('NOT_STARTED', 'IN_PROGRESS', 'COMPLETE', 'FAILED')),
     kb_docs_written      integer NOT NULL DEFAULT 0,
     kb_docs_deleted      integer NOT NULL DEFAULT 0,
+    kb_docs_failed       integer NOT NULL DEFAULT 0,
     error_message        text
 );
 
@@ -792,8 +795,10 @@ kb/postings/{posting_id}.txt.metadata.json                     # KB 필터용 �
 - `deadline_epoch_day`는 1970-01-01부터 센 날짜 수다(2026-11-30 = 20787). 상시·채용 시 마감은 `99999`를 넣어 "오늘 이후" 필터를 항상 통과하게 한다.
 - `categories`는 `category_ids`를 코드로 바꾼 목록이다. `categories`·`employment_types`·`regions`는 목록이라 `listContains`로 거른다.
 - 연차를 모르는 경력 공고(`career_min_years` NULL)는 KB 메타데이터에 표시값 `99`를 넣는다. 연차 필터 `career_min_years <= N`의 N은 최대 40이라([API 명세 5.1](04-api-spec.md#51-조건-추출-도구-스키마)) 99는 늘 통과하지 못하고, 연차를 말한 검색에서 빠진다. "경력"만 말한 검색은 연차 필터를 걸지 않으므로 나온다. 위 마감일 `99999`와 같은 방식이다.
-- 키를 빼는 방식은 쓰지 않는다. Retrieve API 설명은 비교 필터가 "그 키를 가진 문서"만 돌려준다고 적고 있지만(`notEquals`만 예외), S3 Vectors에서 실제로 그런지 확인되지 않았다([요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)). 99는 KB 메타데이터에만 쓰고, RDS와 API 응답은 NULL 그대로다. 결과는 RDS 재확인에서 한 번 더 걸러진다.
-- 필터에 쓰지 않는 값은 메타데이터에 넣지 않는다. KB와 S3 Vectors를 함께 쓰면 사용자 메타데이터는 벡터당 1KB, 키 35개까지다. 2026-11-03 공공데이터포털 공고 527건으로 위 형식을 만들어 재 보니 최대 371바이트(중간값 209), 키 9개였다([요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)). 연차 미상 공고에 `99`를 넣어도 키 하나, 20여 바이트가 늘 뿐이다.
+- 키를 빼는 방식은 쓰지 않는다. Q-05 실측(2026-11-25)에서 키가 없는 문서는 Retrieve API 설명대로 비교·목록 필터에서 빠지고 `notEquals`에서만 나왔다([요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)). 그래도 표시값을 쓰는 이유는 메타데이터만 보고 "값을 모름"을 알 수 있고, 키 구성이 모든 문서에서 같아서다. 표시값은 KB 메타데이터에만 쓰고, RDS와 API 응답은 NULL·`{}` 그대로다. 결과는 RDS 재확인에서 한 번 더 걸러진다.
+- **빈 목록은 넣지 않는다.** 코드 매핑에 실패해 `regions`·`categories`·`employment_types`가 비면([테스트 전략 DQ-07~09](07-test-plan.md#31-레코드-단위)) KB 메타데이터에 표시값 `["UNKNOWN"]`을 넣는다. 빈 목록 `[]`이 하나라도 있으면 KB가 문서 전체를 색인하지 않는다("invalid metadata attributes", Q-05 실측). 그러면 다른 조건이 맞아도 채팅 검색에서 사라진다. `UNKNOWN`은 조건 추출 enum에 없고 서버가 더하는 값(`전국`, `IT_GENERAL`)도 아니어서 어떤 필터와도 맞지 않는다. 그래서 그 키로 거르는 검색에서만 빠지고 나머지 검색에는 나온다. KB 문서를 만드는 코드는 "빈 목록 없음"을 단위 테스트로 막는다.
+- KB는 숫자를 실수로 저장한다(`posting_id` 12345 → `12345.0`). Retrieve 결과의 `posting_id`는 정수로 바꿔 RDS를 조회한다.
+- 필터에 쓰지 않는 값은 메타데이터에 넣지 않는다. KB와 S3 Vectors를 함께 쓰면 사용자 메타데이터는 벡터당 1KB, 키 35개까지다. 2026-11-03 공공데이터포털 공고 527건으로 위 형식을 만들어 재 보니 최대 371바이트(중간값 209), 키 9개였다([요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)). 연차 미상 공고에 `99`를 넣어도 키 하나, 20여 바이트가 늘 뿐이다. KB는 필터 가능한 키 2개(`x-amz-bedrock-kb-source-file-modality`, `x-amz-bedrock-kb-data-source-id`)와 필터 불가 키(`AMAZON_BEDROCK_TEXT`, `AMAZON_BEDROCK_METADATA`)를 스스로 더한다.
 - 기술 키워드는 필터가 아니라 본문 의미 검색으로 처리한다.
 
 ## 10. 보존 정책

@@ -6,6 +6,7 @@
 | 작성일 | 2026-11-02 |
 | 변경 | 개발 도구를 WSL로 통일: 권한 패턴을 `wsl -e` 형태로, 훅도 WSL에서 실행 (2026-11-03) |
 | 변경 | Phase 0 적용: `.claude/settings.json`(2-1 + 더한 규칙), 링크 검사 스크립트와 `*.md` 훅, 줄바꿈 LF 고정 (2026-11-04) |
+| 변경 | 7장 주차를 일정 16주 기준으로 갱신 (2026-11-24) |
 | 관련 문서 | [인프라 명세](05-infrastructure.md), [CI/CD](06-cicd.md), [로드맵](09-roadmap.md), [CLAUDE.md](../CLAUDE.md) |
 
 > OpenAI의 하네스 엔지니어링 방법론(https://openai.com/index/harness-engineering/)을 Claude Code 환경에 맞게 옮긴 문서.
@@ -221,11 +222,11 @@ Claude가 결과를 직접 확인할 수단을 하네스에 넣는다.
 
 | 단계 | 갖출 것 |
 |---|---|
-| **Phase 0** (W1) | CLAUDE.md(지도), `.claude/settings.json` 권한(2-1), 문서 링크 검사 스크립트와 `*.md` PostToolUse 훅, `.gitattributes`·`.editorconfig`로 줄바꿈 LF 고정. 2026-11-04에 모두 적용했다 |
-| **Phase 1** (W2~4) | `*.tf` PostToolUse 훅(fmt·validate), tflint·checkov 기본, 구조 테스트 `sg-in-network-only`·`no-inline-route`·`required-tags`, `/import-check`, `infra/CLAUDE.md` |
-| **Phase 2** (W5~6) | `*.py` 훅(ruff), import-linter `outside-vpc-no-db`, 구조 테스트 `no-ondemand-ref`·`secrets-in-storage-only`, `plan-reader` 서브에이전트 |
-| **Phase 3** (W7~9) | 앱 계층 규칙(`bedrock-via-llm`, `layer-order`), 디버그 엔드포인트, `make check`와 Stop 훅, `/cost-check` |
-| **Phase 4~5** (W10~11) | CI에서 같은 검사 실행, `reviewer` 서브에이전트, 문서 숫자 일치 검사(`docs/facts.yaml`)와 `/doc-sync` |
+| **Phase 0** (W1~3) | CLAUDE.md(지도), `.claude/settings.json` 권한(2-1), 문서 링크 검사 스크립트와 `*.md` PostToolUse 훅, `.gitattributes`·`.editorconfig`로 줄바꿈 LF 고정. 2026-11-04에 모두 적용했다 |
+| **Phase 1** (W4~6) | `*.tf` PostToolUse 훅(fmt·validate), tflint·checkov 기본, 구조 테스트 `sg-in-network-only`·`no-inline-route`·`required-tags`, `/import-check`, `infra/CLAUDE.md` |
+| **Phase 2** (W7~8) | `*.py` 훅(ruff), import-linter `outside-vpc-no-db`, 구조 테스트 `no-ondemand-ref`·`secrets-in-storage-only`, `plan-reader` 서브에이전트 |
+| **Phase 3** (W9~11) | 앱 계층 규칙(`bedrock-via-llm`, `layer-order`), 디버그 엔드포인트, `make check`와 Stop 훅, `/cost-check` |
+| **Phase 4~5** (W12~13) | CI에서 같은 검사 실행, `reviewer` 서브에이전트, 문서 숫자 일치 검사(`docs/facts.yaml`)와 `/doc-sync` |
 | **Phase 6 이후** | 문서·코드 불일치 주기 점검(선택), 8장 변경 이력 운영 |
 
 > 원칙: 하네스도 점진적으로. "Claude가 실수하면 → 그 실수를 막는 규칙을 추가"하는 습관을 Phase 0부터 들이는 것이 문서를 완벽하게 갖추는 것보다 중요하다.

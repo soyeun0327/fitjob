@@ -14,6 +14,9 @@
 | 변경 | 8.3 S3 Vectors 인덱스의 필터 불가 키·인덱스 모드 추가 (2026-11-03) |
 | 변경 | 10.4·13.3 Q-06 결과 반영: S3 Vectors·KB는 프로바이더가 지원 (2026-11-04) |
 | 변경 | 5.2 작업용 IAM 사용자와 CLI 자격증명 방식(`aws login --remote`), 11장 체크리스트 진행 표시 (2026-11-04) |
+| 변경 | 8.3 Q-03·Q-04 확인 결과: 임베딩 모델 서울 지원, Haiku 5.5 호출 경로, Anthropic 사용 사례 양식 (2026-11-10) |
+| 변경 | Q-03 결정(ADR-014): 5.1·5.2 `bedrock:InvokeModel` 허용 ARN 3개, 8.3 LLM 행, 8.3 모델 접근 2단계(양식, 이용 계약)와 결제 카드 교체 후 재시도 결과. 일정 16주로 주차 번호 갱신 (2026-11-24) |
+| 변경 | 13.3 `bootstrap`: W0에 콘솔로 만든 Budgets와 9장 설정의 차이(금액 $10 포함), 가져온 뒤 코드로 맞추는 순서 (2026-11-25) |
 | 리전 | 서울 `ap-northeast-2` (가용영역 2a, 2c) + CloudFront 인증서용 `us-east-1` |
 | 관련 문서 | [아키텍처](02-architecture.md), [ADR](10-adr.md) |
 
@@ -152,7 +155,7 @@ iptables-save > /etc/sysconfig/iptables
 
 | 역할 | 사용 주체 | 권한 (리소스는 특정 ARN으로 제한) |
 |---|---|---|
-| `fitjob-prod-app-ec2` | 앱 EC2 | `AmazonSSMManagedInstanceCore`, CloudWatch 에이전트 지표·로그 쓰기, ECR 이미지 받기(`fitjob-api` 리포지토리), `bedrock:InvokeModel`(사용 모델·추론 프로필), `bedrock:Retrieve`(KB), `secretsmanager:GetSecretValue`(`db-app`), `ssm:GetParameter`(`/fitjob/prod/*`) |
+| `fitjob-prod-app-ec2` | 앱 EC2 | `AmazonSSMManagedInstanceCore`, CloudWatch 에이전트 지표·로그 쓰기, ECR 이미지 받기(`fitjob-api` 리포지토리), `bedrock:InvokeModel`(LLM ARN 3개, 아래 참고), `bedrock:Retrieve`(KB), `secretsmanager:GetSecretValue`(`db-app`), `ssm:GetParameter`(`/fitjob/prod/*`) |
 | `fitjob-prod-nat` | NAT 인스턴스 | `AmazonSSMManagedInstanceCore`. fck-nat 단계에서 ENI 부착 권한 추가 |
 | `fitjob-prod-db-access` | DB 접속용 임시 EC2 (Phase 2) | `AmazonSSMManagedInstanceCore`만 ([8.5](#85-db-접속용-임시-ec2-phase-2)) |
 | `fitjob-prod-lambda-collector` | 수집 Lambda | S3 `raw/*` 쓰기, `api-keys` 시크릿 읽기, 로그 |
@@ -162,6 +165,14 @@ iptables-save > /etc/sysconfig/iptables
 | `fitjob-prod-sfn` | Step Functions | 위 Lambda 호출, `bedrock:StartIngestionJob`·`GetIngestionJob`(KB), SNS 발행(공용 토픽 `fitjob-prod-alerts`) |
 | `fitjob-prod-scheduler` | EventBridge Scheduler | 상태 머신 실행 시작 |
 | `fitjob-prod-kb` | Bedrock KB | S3 `kb/*` 읽기, S3 Vectors 인덱스 읽기·쓰기, 임베딩 모델 호출 |
+
+LLM은 글로벌 교차 리전 추론 프로필로 호출한다([ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다)). 프로필이 요청을 다른 리전의 모델로 보내므로, `bedrock:InvokeModel`은 아래 ARN 3개를 모두 허용해야 한다. 하나라도 빠지면 `AccessDeniedException`이 난다. 앱 EC2 역할과 `fitjob-gha-eval`(5.2)이 같다.
+
+| ARN | 뜻 |
+|---|---|
+| `arn:aws:bedrock:ap-northeast-2:<계정ID>:inference-profile/global.anthropic.claude-haiku-5-5` | 호출하는 추론 프로필 |
+| `arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-haiku-5-5` | 서울 리전의 모델 |
+| `arn:aws:bedrock:::foundation-model/anthropic.claude-haiku-5-5` | 리전이 없는 모델 ARN. 글로벌 프로필이 다른 리전으로 보낼 때 확인한다 |
 
 역할은 쓰는 리소스와 같은 스택에 둔다. 앱 EC2 역할은 `app`, NAT 역할과 DB 접속용 임시 EC2 역할은 `nat`, Lambda·Step Functions·Scheduler 역할은 `pipeline`, KB 역할은 `storage`에 있다.
 
@@ -175,7 +186,7 @@ iptables-save > /etc/sysconfig/iptables
 | `fitjob-gha-web-deploy` | `repo:<owner>/fitjob:environment:prod` | 웹 버킷 쓰기, CloudFront 무효화 |
 | `fitjob-gha-tf-plan` | `repo:<owner>/fitjob:pull_request`, `repo:<owner>/fitjob:ref:refs/heads/main` | 읽기 전용 + state 버킷 읽기. PR의 `plan`, `drift-check`·`security-smoke` 예약 실행(main 브랜치)이 쓴다 |
 | `fitjob-gha-tf-apply` | `repo:<owner>/fitjob:environment:prod` | 스택별 관리 권한 (GitHub 환경 승인 필요) |
-| `fitjob-gha-eval` | `repo:<owner>/fitjob:ref:refs/heads/main`, `repo:<owner>/fitjob:pull_request` | `bedrock:InvokeModel`(사용 모델)만 — RAG 평가 프롬프트 모드 전용. 전체 모드는 공개 API만 써서 AWS 권한이 필요 없다([테스트 전략 5.3](07-test-plan.md#53-실행-방식)) |
+| `fitjob-gha-eval` | `repo:<owner>/fitjob:ref:refs/heads/main`, `repo:<owner>/fitjob:pull_request` | `bedrock:InvokeModel`(LLM ARN 3개, [5.1](#51-서비스-역할))만 — RAG 평가 프롬프트 모드 전용. 전체 모드는 공개 API만 써서 AWS 권한이 필요 없다([테스트 전략 5.3](07-test-plan.md#53-실행-방식)) |
 | `fitjob-gha-env-down` | `repo:<owner>/fitjob:ref:refs/heads/main` (main 브랜치의 예약·수동 실행) | `nat`·`database`·`app`·`observability` 스택 destroy에 필요한 조회·삭제 권한, state 버킷의 온디맨드 스택 키 읽기·쓰기, 상시 스택 state 읽기. 생성·변경 권한 없음 — nightly-down 전용([12.2](#122-nightly-down)) |
 
 - 장기 액세스 키는 만들지 않는다. 신뢰 정책 예시는 [CI/CD](06-cicd.md#5-aws-인증-github-oidc) 참고.
@@ -297,8 +308,8 @@ docker run -d --name api --restart unless-stopped -p 8000:8000 \
 
 | `rds_ephemeral` | `deletion_protection` | `skip_final_snapshot` | 쓰는 때 |
 |---|---|---|---|
-| `false` (기본) | `true` | `false` (삭제 시 최종 스냅샷) | Phase 2(데이터 파이프라인, W5~6) 동안, 운영 단계(반드시). `make down`이 `database` 스택을 건너뛴다 |
-| `true` | `false` | `true` | Phase 3~5(W7~11)에 RDS도 `make up`·`make down`에 포함할 때. 공고는 S3 `staging/`에서 replay로 다시 채운다([DB 스키마 6.6](03-db-schema.md#66-재적재replay)) |
+| `false` (기본) | `true` | `false` (삭제 시 최종 스냅샷) | Phase 2(데이터 파이프라인, W7~8) 동안, 운영 단계(반드시). `make down`이 `database` 스택을 건너뛴다 |
+| `true` | `false` | `true` | Phase 3~5(W9~13)에 RDS도 `make up`·`make down`에 포함할 때. 공고는 S3 `staging/`에서 replay로 다시 채운다([DB 스키마 6.6](03-db-schema.md#66-재적재replay)) |
 
 **Phase 2 동안 RDS를 켜두는 이유:** 이 단계에서 만드는 적재 로직 중에는 여러 날의 DB 상태가 이어져야 확인할 수 있는 것이 많다.
 
@@ -333,10 +344,10 @@ state 버킷은 `bootstrap`, 나머지 버킷은 `storage` 스택에 있다(모�
 |---|---|
 | KB 데이터 소스 | S3 `fitjob-prod-data-<계정ID>/kb/postings/` |
 | 분할 전략 | 분할 없음 (문서 1개 = 청크 1개) |
-| 임베딩 모델 | Titan Text Embeddings V2, 1024차원 (서울 리전 지원 확인 필요) |
+| 임베딩 모델 | Titan Text Embeddings V2(`amazon.titan-embed-text-v2:0`), 1024차원. 서울에서 직접 호출(`ON_DEMAND`)된다(2026-11-10 확인, [요구사항 Q-04](01-requirements.md#9-미결-사항-구현-전-확인)) |
 | 벡터 저장소 | S3 Vectors 벡터 버킷 `fitjob-prod-vectors`, 인덱스 `postings`, 코사인 거리. 필터 불가(non-filterable) 메타데이터 키로 `AMAZON_BEDROCK_TEXT`, `AMAZON_BEDROCK_METADATA`를 지정한다. **인덱스를 만들 때만 정할 수 있고 나중에 바꿀 수 없다**(이름·차원·거리도 같음). 2026-09-30 이후 만든 버킷이라 인덱스 모드는 `ENHANCED`(필터를 먼저 적용) |
-| LLM | Claude Haiku 5.5 (서울에서 호출 방식 확인 필요) |
-| 모델 접근 | Bedrock 콘솔에서 사용할 모델 접근 활성화 |
+| LLM | Claude Haiku 5.5. 서울에서는 모델 ID로 직접 호출할 수 없고 글로벌 교차 리전 추론 프로필 `global.anthropic.claude-haiku-5-5`로만 호출된다. 요청이 한국 밖 리전에서 처리될 수 있다. 이 경로를 쓰기로 했다(2026-11-24, [ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다)). 앱은 모델 ID 대신 프로필 ID로 호출하고, IAM은 ARN 3개를 허용한다([5.1](#51-서비스-역할)) |
+| 모델 접근 | Anthropic 모델은 두 단계가 필요하다. ① 계정당 한 번 사용 사례 양식 제출 ② 모델별 이용 계약(AWS Marketplace 구독). 계약은 첫 호출 때 자동으로 맺어진다고 되어 있지만, 이 계정에서는 맺어지지 않아 `aws bedrock create-foundation-model-agreement`(제안은 `list-foundation-model-agreement-offers`)로 직접 맺었다. 상태는 `get-foundation-model-availability`의 `agreementAvailability`로 본다. 빠지면 호출이 `AccessDeniedException`("not available for this account")으로 막힌다. 두 단계를 마친 뒤에도 막혀 AWS Support에 문의 중이다(2026-11-24). 만료된 결제 카드를 바꾸고 두 단계를 다시 해도 풀리지 않아, 계정 단위 제한으로 보고 Support 답변을 기다린다. Titan 같은 Amazon 모델은 둘 다 필요 없다 |
 
 ### 8.4 DB 관리 작업 접속
 
@@ -368,7 +379,7 @@ RDS는 프라이빗 DB 서브넷에 있어 밖에서 직접 닿지 않는다. �
 
 ### 8.5 DB 접속용 임시 EC2 (Phase 2)
 
-Phase 2(W5~6)에는 `app` 스택이 아직 없어서 8.4의 경유지인 앱 인스턴스가 없다. 그런데 이 단계에서 DB 사용자 생성, 첫 마이그레이션, 적재 결과 확인을 해야 한다. 그래서 Phase 3에 앱 서버가 생길 때까지 포트 포워딩 경유지로만 쓰는 작은 EC2를 둔다.
+Phase 2(W7~8)에는 `app` 스택이 아직 없어서 8.4의 경유지인 앱 인스턴스가 없다. 그런데 이 단계에서 DB 사용자 생성, 첫 마이그레이션, 적재 결과 확인을 해야 한다. 그래서 Phase 3에 앱 서버가 생길 때까지 포트 포워딩 경유지로만 쓰는 작은 EC2를 둔다.
 
 | 항목 | 값 |
 |---|---|
@@ -383,7 +394,7 @@ Phase 2(W5~6)에는 `app` 스택이 아직 없어서 8.4의 경유지인 앱 인
 
 - 이 EC2에서는 아무것도 실행하지 않는다. 운영자 PC가 이 EC2를 거쳐 RDS에 닿기만 하고, 자격증명은 운영자 PC가 Secrets Manager에서 읽는다.
 - 쓰는 법은 8.4 절차와 같다. 1단계에서 앱 인스턴스 대신 `Name=fitjob-prod-db-access` 인스턴스를 고른다.
-- Phase 3에서 `app` 스택을 가져온 뒤 앱 인스턴스로 접속되는 것을 확인하면 `nat` 스택 코드에서 지운다([로드맵 Phase 3](09-roadmap.md#phase-3-api웹-w79)).
+- Phase 3에서 `app` 스택을 가져온 뒤 앱 인스턴스로 접속되는 것을 확인하면 `nat` 스택 코드에서 지운다([로드맵 Phase 3](09-roadmap.md#phase-3-api웹-w911)).
 
 ## 9. 관측·알림
 
@@ -559,7 +570,7 @@ provider "aws" {
 | 실행 | 매일 03:00 KST 예약 실행, 수동 실행(`workflow_dispatch`)도 지원 |
 | 하는 일 | `make down` |
 | 역할 | `fitjob-gha-env-down` — 온디맨드 스택 destroy 권한만 ([5.2](#52-cicd-역할-github-oidc)) |
-| 멈추기 | 저장소 변수 `NIGHTLY_DOWN`이 `off`면 건너뛴다. 24시간 운영하는 운영 단계(W12~14)에는 `off`, 개발 기간에는 `on`. 03:00을 넘겨 작업할 때도 그날만 `off`로 바꾼다 |
+| 멈추기 | 저장소 변수 `NIGHTLY_DOWN`이 `off`면 건너뛴다. 24시간 운영하는 운영 단계(W14~16)에는 `off`, 개발 기간에는 `on`. 03:00을 넘겨 작업할 때도 그날만 `off`로 바꾼다 |
 | 실패 시 | GitHub Actions 실패 알림 메일 → [운영 RB-08](08-operations.md#rb-08-make-updown-실패--꺼지지-않은-리소스) |
 
 ### 12.3 운영 규칙
@@ -632,7 +643,7 @@ import {
 
 | 스택 | 콘솔로 만드는 것 | ④ 재현 확인 | 비고 |
 |---|---|---|---|
-| `bootstrap` | state 버킷, GitHub OIDC 공급자·역할, Budgets, 공용 SNS 토픽 | 하지 않음 (state 버킷을 지울 수 없음) | 처음에는 로컬 state로 import한 뒤 S3 백엔드로 옮긴다 |
+| `bootstrap` | state 버킷, GitHub OIDC 공급자·역할, Budgets, 공용 SNS 토픽 | 하지 않음 (state 버킷을 지울 수 없음) | 처음에는 로컬 state로 import한 뒤 S3 백엔드로 옮긴다. Budgets는 아래 표 참고 |
 | `network` | VPC, 서브넷, 라우팅 테이블, IGW, S3 엔드포인트, 보안 그룹 | destroy 후 apply. 다른 스택을 만들기 전에 한다 | 학습 효과가 가장 크다. 처음 해보기에 적합 |
 | `nat` | NAT 인스턴스(소스/대상 확인 끄기, user data), `rt-app` 기본 경로. Phase 2에 DB 접속용 임시 EC2와 그 역할 | `make down`·`make up` | 임시 EC2는 Phase 3에서 지운다([8.5](#85-db-접속용-임시-ec2-phase-2)) |
 | `storage` | S3 버킷, 시크릿(틀만), S3 Vectors, KB, ECR, SSM 파라미터 | 하지 않음 (데이터, 시크릿 복구 대기 기간) | S3 Vectors·KB는 프로바이더가 지원한다([요구사항 Q-06](01-requirements.md#9-미결-사항-구현-전-확인)). import가 막히는 부분만 CLI 스크립트로 보완 |
@@ -641,3 +652,13 @@ import {
 | `edge` | 호스팅 영역(도메인 구매 시 생김), ACM 인증서 2개, CloudFront, OAC | 하지 않음 (호스팅 영역을 다시 만들면 네임서버가 바뀜) | CloudFront는 설정이 커서 설정 자동 생성이 특히 유용 |
 | `app` | 대상 그룹, ALB, 리스너 규칙, 시작 템플릿, ASG, `origin` 레코드 | `make down`·`make up` | 리소스가 많아 시간이 가장 오래 걸린다 |
 | `observability` | 알람, 대시보드, Route 53 헬스체크 | destroy 후 apply | |
+
+W0에 콘솔 템플릿으로 만든 Budgets는 [9장](#9-관측알림) 설정과 다르다(2026-11-25 확인). 콘솔에서 고치지 않고, 콘솔 설정 그대로 가져와 ③ "No changes"를 맞춘 뒤 코드로 바꿔 `apply`한다. 가져온 뒤에는 코드로만 바꾼다는 규칙을 한 번 연습하는 단계다(2026-11-25 결정).
+
+| 항목 | 콘솔 (지금) | 9장 (목표) | 바꿀 때 |
+|---|---|---|---|
+| 금액 | 월 $10 (Phase 0 연습 단계라 사용자가 낮춤, 2026-11-25) | 월 $100 | 가져온 뒤 코드로 올린다. 늦어도 RDS를 상시 켜는 Phase 2(월 약 $25~30) 전에 올려야 알림이 계속 울리지 않는다 |
+| 이름 | `My Monthly Cost Budget - FitJob` | 이름 규칙 `fitjob-prod-<역할>` (예: `fitjob-prod-budget`) | 이름을 바꾸면 예산을 새로 만들어야 해서 `plan`에 교체(replace)로 나올 것이다. 예산은 다시 만들어도 잃는 것이 없다 |
+| 알림 | 실제 85%·100%, 예측 100% | 실제 50%·80%·100%, 예측 100% | |
+| 받는 곳 | 이메일 직접 | SNS 토픽 `fitjob-prod-alerts` | 토픽 정책에서 `budgets.amazonaws.com`의 게시를 허용해야 한다 |
+| Phase 0 임시 알림 | 실제 비용 $0.01 초과 | 없음 | 메일을 받으면 가져오기 전에 콘솔에서 지운다([로드맵 Phase 0](09-roadmap.md#phase-0-준비-w13)) |

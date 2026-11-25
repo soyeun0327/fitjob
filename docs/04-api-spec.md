@@ -10,6 +10,7 @@
 | 변경 | 고용형태·직무를 배열로(`employment_types`, `categories`), `PERMANENT_CONTRACT` 추가, `IT_GENERAL` 자동 포함, 연차 미상 경력 공고 처리 (2026-11-03) |
 | 변경 | 5.2에 S3 Vectors 필터 제약(문서 확인 결과) 추가 (2026-11-03) |
 | 변경 | 5.2 연차 미상 경력 공고의 KB 메타데이터를 표시값 `99`로, S3 Vectors 제약 표에 빈 목록 메타데이터 추가 (2026-11-04) |
+| 변경 | 5.2 S3 Vectors 제약 표에 Q-05 실측 결과 열 추가, 중첩 2단계 제한, 빈 목록 대신 표시값 `UNKNOWN` (2026-11-25) |
 | 구현 | FastAPI (Python), 컨테이너로 EC2에서 실행 |
 | 기준 URL | `https://app.<도메인>/api` (CloudFront `/api/*` → ALB) |
 
@@ -324,19 +325,21 @@ KB `Retrieve` 호출의 필터 예(서울, 신입, 클라우드·인프라):
 ```
 
 - `andAll`·`orAll`은 조건이 2개 이상일 때만 쓴다. 조건이 1개면 그 조건만 넣는다.
+- 중첩은 `andAll` 안의 `orAll`까지만 쓴다. 그 안에 논리 연산자를 한 번 더 넣으면 KB가 `ValidationException`("You can't nest more than 2 levels")을 돌려준다(Q-05 실측). 필터 변환 단위 테스트로 깊이를 막는다.
+- `notEquals`는 키가 없는 문서도 통과시키므로 쓰지 않는다.
 - IT 직무는 BACKEND, FRONTEND, MOBILE, DATA, AI_ML, INFRA_CLOUD, DEVOPS_SRE, SECURITY, QA, EMBEDDED다. 이 중 하나라도 있으면 `IT_GENERAL`을 더한다. 세부 직무를 알 수 없는 공공기관 IT 공고가 IT 검색에서 빠지지 않게 하기 위해서다([DB 스키마 4](03-db-schema.md#4-코드-값)).
 - 연차를 모르는 경력 공고(`career_min_years` NULL)는 연차를 말한 검색에서 빠진다. KB 메타데이터에는 표시값 `99`가 들어가 `99 <= N`이 늘 거짓이고(N은 최대 40), RDS에서도 `NULL <= N`은 참이 아니기 때문이다. "경력"만 말하면 나온다([DB 스키마 7.1](03-db-schema.md#71-공공데이터포털-코드-매핑), [9](03-db-schema.md#9-kb-문서-형식)).
 - 상위 20건을 받아 RDS에서 재확인한 뒤 10건으로 자른다.
-- **S3 Vectors에서의 필터 제약** (AWS 문서 확인 2026-11-03, 실측은 Phase 0, [요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)):
+- **S3 Vectors에서의 필터 제약** (AWS 문서 확인 2026-11-03, 실측 2026-11-25, [요구사항 Q-05](01-requirements.md#9-미결-사항-구현-전-확인)). 실측은 서울에 KB를 만들어 가짜 공고 10개, 필터 21개로 했다(`scripts/phase0/q05_kb_filter_check.py`):
 
-| 항목 | 문서 내용 | 이 설계에 주는 영향 |
-|---|---|---|
-| `startsWith`, `stringContains` | S3 Vectors를 쓰는 KB에서는 쓸 수 없다 | 쓰지 않는다 |
-| `listContains`, `in` | KB 가이드는 "OpenSearch Serverless에서 가장 잘 지원"이라고만 적었다. S3 Vectors 자체는 목록 메타데이터를 지원하고, 목록에 `$eq`를 걸면 원소 하나만 같아도 일치한다 | **실측 필요.** 지역·직무·고용형태 필터가 모두 목록이다 |
-| `andAll`, `orAll` 크기 | 사용자 가이드: 그룹 하나에 조건 5개, 중첩은 1단계까지. API 레퍼런스: 최소 2개만 적혀 있다 | **실측 필요.** 위 예시는 최상위 4개지만, 조건을 다 쓰면 최상위 8개(경력 2, 지역, 직무, 고용형태, 학력, 마감 2), 지역 `orAll` 최대 19개가 된다 |
-| 키가 없는 문서 | API 설명상 비교 필터는 "그 키를 가진 문서"만 돌려준다. `notEquals`만 키가 없는 문서도 돌려준다 | 연차 미상 공고는 키를 빼지 않고 표시값 `99`를 넣어 이 동작에 기대지 않는다([DB 스키마 9](03-db-schema.md#9-kb-문서-형식)). 실측은 참고용으로 한다 |
-| 빈 목록 메타데이터 | 확인하지 않았다 | 코드 매핑에 실패하면 `regions`·`categories`·`employment_types`가 `[]`로 들어간다([테스트 전략 3.1](07-test-plan.md#31-레코드-단위) DQ-07~09). S3 Vectors가 `[]`를 받아주는지, 목록 필터에서 빠지는지 **실측 필요**. 받아주지 않으면 KB 동기화가 실패하므로, 키를 빼거나 표시값을 넣는 방식을 그때 정한다 |
-| 인덱스 모드 | 2026-09-30 이후 만든 벡터 버킷은 `ENHANCED`다. 필터를 먼저 적용해 결과 수가 줄지 않고, 쿼리 하나에 조건 값 100개까지 | Phase 2에 만들 버킷은 `ENHANCED`다. 조건 값 100개는 넘지 않는다 |
+| 항목 | 문서 내용 | 실측 (2026-11-25) | 이 설계에 주는 영향 |
+|---|---|---|---|
+| `startsWith`, `stringContains` | S3 Vectors를 쓰는 KB에서는 쓸 수 없다 | 시험하지 않았다 | 쓰지 않는다 |
+| `listContains`, `in` | KB 가이드는 "OpenSearch Serverless에서 가장 잘 지원"이라고만 적었다. S3 Vectors 자체는 목록 메타데이터를 지원하고, 목록에 `$eq`를 걸면 원소 하나만 같아도 일치한다 | `listContains`가 된다. 목록 키에 건 `equals`·`in`도 원소 하나만 맞으면 일치한다 | 위 예시대로 `listContains`를 `orAll`로 묶는다. `in` 하나로 줄이는 방법은 예비 수단으로 둔다 |
+| `andAll`, `orAll` 크기 | 사용자 가이드: 그룹 하나에 조건 5개, 중첩은 1단계까지. API 레퍼런스: 최소 2개만 적혀 있다 | `andAll` 6개·8개, `orAll` 19개가 된다. `andAll` 안의 `orAll`은 되고, 그 안에 `andAll`을 넣으면 오류다 | 최상위 8개(경력 2, 지역, 직무, 고용형태, 학력, 마감 2)와 지역 `orAll` 19개를 그대로 쓴다. 5개 한도는 문서와 다른 동작이라 RDS 재확인을 유지하고, Phase 2 완료 기준의 CLI `Retrieve` 확인에서 최대 필터를 다시 본다 |
+| 키가 없는 문서 | API 설명상 비교 필터는 "그 키를 가진 문서"만 돌려준다. `notEquals`만 키가 없는 문서도 돌려준다 | 문서와 같다. 숫자 비교·`listContains`에서 빠지고 `notEquals`에서 나온다 | 연차 미상 공고는 표시값 `99`를 그대로 쓴다([DB 스키마 9](03-db-schema.md#9-kb-문서-형식)) |
+| 빈 목록 메타데이터 | 확인하지 않았다 | **문서 전체가 색인되지 않는다**("invalid metadata attributes"). 동기화 작업은 그래도 `COMPLETE`로 끝나고 `numberOfDocumentsFailed`만 늘어난다 | 코드 매핑에 실패해 목록이 비면([테스트 전략 3.1](07-test-plan.md#31-레코드-단위) DQ-07~09) KB에는 표시값 `["UNKNOWN"]`을 넣는다. 동기화는 실패 문서 수까지 확인한다([아키텍처 5](02-architecture.md#5-데이터-수집-파이프라인)) |
+| 인덱스 모드 | 2026-09-30 이후 만든 벡터 버킷은 `ENHANCED`다. 필터를 먼저 적용해 결과 수가 줄지 않고, 쿼리 하나에 조건 값 100개까지 | 상위 20건을 요청하면 필터를 통과한 문서가 모두 나왔다. Retrieve 응답은 약 0.8~1.0초(운영자 PC에서) | Phase 2에 만들 버킷은 `ENHANCED`다. 조건 값 100개는 넘지 않는다 |
 
 ### 5.3 LLM 안전 규칙
 
