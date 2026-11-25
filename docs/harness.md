@@ -7,6 +7,7 @@
 | 변경 | 개발 도구를 WSL로 통일: 권한 패턴을 `wsl -e` 형태로, 훅도 WSL에서 실행 (2026-11-03) |
 | 변경 | Phase 0 적용: `.claude/settings.json`(2-1 + 더한 규칙), 링크 검사 스크립트와 `*.md` 훅, 줄바꿈 LF 고정 (2026-11-04) |
 | 변경 | 7장 주차를 일정 16주 기준으로 갱신 (2026-11-24) |
+| 변경 | `/plan-status`가 읽는 완료 기록 위치를 로드맵 7장으로 고침 (2026-11-25) |
 | 관련 문서 | [인프라 명세](05-infrastructure.md), [CI/CD](06-cicd.md), [로드맵](09-roadmap.md), [CLAUDE.md](../CLAUDE.md) |
 
 > OpenAI의 하네스 엔지니어링 방법론(https://openai.com/index/harness-engineering/)을 Claude Code 환경에 맞게 옮긴 문서.
@@ -194,7 +195,7 @@ Claude가 결과를 직접 확인할 수단을 하네스에 넣는다.
 | 커맨드 | 내용 |
 |---|---|
 | `/verify` | 바뀐 영역의 `make check` 실행 후 결과 요약 |
-| `/plan-status` | 로드맵과 CLAUDE.md 완료 기록을 읽고 현재 Phase의 완료·미완료 항목 정리 |
+| `/plan-status` | 로드맵(7장 완료 기록 포함)과 CLAUDE.md 현재 단계를 읽고 현재 Phase의 완료·미완료 항목 정리 |
 | `/import-check <스택>` | 해당 스택 `plan`이 "No changes"인지, `ManagedBy=console` 리소스가 남았는지 |
 | `/cost-check` | 어제 비용(`Stack` 태그별), 켜져 있는 온디맨드 스택, 잊고 켜둔 리소스 |
 | `/doc-sync` | 문서 간 숫자·이름 일치와 링크 검사 |
