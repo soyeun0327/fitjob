@@ -6,7 +6,9 @@
 | 작성일 | 2026-11-10 |
 | 변경 | 로드맵 Phase 0 링크 갱신(W1~3) (2026-11-24) |
 | 변경 | 공개 저장소라 버킷 이름의 계정 번호를 `<계정ID>`로 바꿈 (2026-11-25) |
-| 목적 | Phase 0 Terraform 기초와 S3 버킷 import 연습을 정리한다([로드맵 Phase 0](../09-roadmap.md#phase-0-준비-w13)). Phase 1부터 실제 스택을 콘솔로 만들고 가져올 때 다시 본다 |
+| 변경 | 연습 폴더를 `tf-practice/02-import`로 바꿈, 8장 12번(비용 할당 태그) 완료 표시, 다음 단계로 [실습 모음](terraform-exercises.md) 연결 (2026-11-25) |
+| 변경 | 연습 폴더를 `C:\Users\soyeun\workspace\tf-practice\02-import`로 옮김 (2026-11-25) |
+| 목적 | Phase 0 Terraform 기초와 S3 버킷 import 연습을 정리한다([로드맵 Phase 0](../09-roadmap.md#phase-0-준비-w13)). Phase 1부터 실제 스택을 콘솔로 만들고 가져올 때 다시 본다. 다음 단계 실습은 [실습 모음](terraform-exercises.md)에 있다 |
 
 ---
 
@@ -195,7 +197,7 @@ state에 값이 평문으로 남기 때문에 시크릿 값은 import하지 않�
 
 ## 8. 직접 해 보기
 
-연습 폴더는 `C:\Users\soyeun\tf-practice`(WSL 경로 `/mnt/c/Users/soyeun/tf-practice`)다. Windows 편집기로 `main.tf`를 쓰고, WSL 터미널에서 이 폴더로 이동해 순서대로 실행한다. 같은 버킷을 두 폴더(두 장부)에서 import하면 안 된다. 한 리소스는 장부 하나만 관리해야 한다.
+연습 폴더는 `C:\Users\soyeun\workspace\tf-practice\02-import`(WSL 경로 `/mnt/c/Users/soyeun/workspace/tf-practice/02-import`)다. 실습마다 폴더를 나누는 이유는 [실습 모음 1.2](terraform-exercises.md#12-폴더-구조)에 있다. Windows 편집기로 `main.tf`를 쓰고, WSL 터미널에서 이 폴더로 이동해 순서대로 실행한다. 같은 버킷을 두 폴더(두 장부)에서 import하면 안 된다. 한 리소스는 장부 하나만 관리해야 한다.
 
 | # | 명령 | 기대 결과 | 배우는 것 |
 |---|---|---|---|
@@ -210,7 +212,7 @@ state에 값이 평문으로 남기 때문에 시크릿 값은 import하지 않�
 | 9 | `terraform plan` | `No changes.` | ③ 완료 기준 |
 | 10 | (선택) 콘솔에서 버킷에 태그를 하나 더 붙이고 `terraform plan` | 그 태그를 지우겠다는 `~` | 드리프트. 가져온 뒤 콘솔 수정이 금지인 이유 |
 | 11 | 콘솔에서 10번 태그를 지우고 `terraform plan` | `No changes.` | 원상 복구 |
-| 12 | 결제 콘솔에서 비용 할당 태그 `Project` 활성화 | 상태 "활성" | 태그가 나타나기까지 최대 24시간 |
+| 12 | 결제 콘솔에서 비용 할당 태그 `Project` 활성화 | 상태 "활성" | 끝남(2026-11-25). 건너뛴다 |
 | 13 | `terraform destroy` → `yes` | "1 destroyed", 콘솔에서 버킷이 사라짐 | 장부에 있는 것만 지운다 |
 
 ## 9. 주의할 점

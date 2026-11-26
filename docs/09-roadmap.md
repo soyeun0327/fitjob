@@ -23,6 +23,11 @@
 | 변경 | Phase 0이 끝나지 않아 Phase 1부터 2주 미룸: 14주 → 16주(~2027-02-28). Q-03 결정(ADR-014), 위험 R-04 갱신. Haiku 호출 확인은 AWS Support 답변 후로 미룸. 결제 카드 교체 후 재시도 기록 (2026-11-24) |
 | 변경 | Budgets 임시 알림을 울리려고 Cost Explorer API 호출($0.02). 콘솔 예산과 문서 설정의 차이는 Phase 1 import 뒤 코드로 맞추기로 결정. Budgets 알림 메일 수신 확인(Phase 0 완료 기준). Q-05 실측 완료, 위험 R-10 갱신 (2026-11-25) |
 | 변경 | 7장: PR로 스쿼시 병합한 작업은 커밋 해시 대신 PR 번호를 적음, Phase 0 기록 3줄을 PR #2로 고침 (2026-11-25) |
+| 변경 | Phase 0: 비용 할당 태그 `Project` 활성화 기록, 7장에 PR #3 행 추가 (2026-11-25) |
+| 변경 | Phase 0 Terraform 행에 실습 모음(실습 12개) 연결. $0.01 임시 알림 삭제 확인 (2026-11-25) |
+| 변경 | Phase 0 상태 줄: $10 절대값 알림은 연습용으로 남김, 연습 폴더 위치 (2026-11-25) |
+| 변경 | Phase 0 Terraform 행 완료(import 후 Terraform으로 버킷 삭제), Phase 0 작업 모두 끝남, 7장에 2행 추가 (2026-11-25) |
+| 변경 | 7장에 실습 모음 Registry 절·실습 3 참고 메모 추가 행 (2026-11-26) |
 | 가정 | 1인, 주 20시간, 2026-11-09(월) 시작, 16주 (콘솔 구축 후 Terraform으로 가져오는 방식이라 Phase 1·3을 1주씩 늘림. Phase 0이 2주 늘어남) |
 
 > 주당 투입 시간은 20시간으로 확인했다(2026-11-10, [요구사항 Q-07](01-requirements.md#9-미결-사항-구현-전-확인)).
@@ -90,11 +95,11 @@ gantt
 
 | 작업 | 산출물 | 상태 (2026-11-25) |
 |---|---|---|
-| 루트 MFA, 작업용 IAM 사용자(MFA), 비용 할당 태그 활성화 | 보안 체크리스트 일부 완료 | 루트 MFA, 루트 액세스 키 없음, 작업용 사용자(MFA, 결제 정보 접근 허용) 완료. 비용 할당 태그는 `Project` 태그가 붙은 리소스(import 연습 버킷)가 생긴 뒤 |
+| 루트 MFA, 작업용 IAM 사용자(MFA), 비용 할당 태그 활성화 | 보안 체크리스트 일부 완료 | 루트 MFA, 루트 액세스 키 없음, 작업용 사용자(MFA, 결제 정보 접근 허용) 완료. 비용 할당 태그 `Project` 활성화 완료(2026-11-25). Cost Explorer에 반영되기까지 최대 24시간 걸린다 |
 | WSL(Ubuntu) 개발 환경: make, Terraform, AWS CLI v2, Session Manager 플러그인 설치, 작업용 IAM 사용자 자격증명을 WSL에 설정. 개발 도구는 WSL에서만 실행한다([하네스 2-1](harness.md#2-1-claude-code-권한--claudesettingsjson)) | 개발 환경, `scripts/setup-wsl.sh` | 완료. Terraform 1.17.1, AWS CLI 2.39.3, Session Manager 플러그인 1.2.896.0, Docker WSL 연동. 자격증명은 `aws login --remote`로 받는 임시 자격증명이고 액세스 키는 없다([인프라 명세 5.2](05-infrastructure.md#52-cicd-역할-github-oidc)) |
 | GitHub 저장소 생성(공개. 무료 플랜의 비공개 저장소는 `prod` 환경 승인을 쓸 수 없음), 이 문서 세트 커밋. `.gitattributes`와 `.editorconfig`로 모든 텍스트 파일의 줄 끝을 LF로 고정(Windows 방식 CRLF로 바뀌면 WSL bash에서 `$'\r'` 오류, `terraform fmt -check` 실패) | 저장소 | 완료. [soyeun0327/fitjob](https://github.com/soyeun0327/fitjob). OIDC 신뢰 조건이 대소문자를 구분해 저장소 이름은 소문자로 맞췄다. `main` 브랜치 보호는 설정 예정 |
 | 하네스 Phase 0: 권한 설정, 문서 링크 검사 스크립트와 `*.md` 훅([하네스 7](harness.md#7-단계별-구축-순서)) | `.claude/settings.json`, `scripts/check_doc_links.py` | 완료 |
-| Terraform 기초(provider, resource, variable, output, state, `import` 블록). 연습: S3 버킷 하나를 콘솔로 만들고 import해 `plan` "No changes"까지 맞춘 뒤 Terraform으로 지우기 | [학습 노트](notes/terraform-basics.md) | 진행 중. 콘솔로 버킷 생성, 코드 초안 정리까지 했다. 명령은 사용자가 직접 실행한다. 연습 코드는 저장소 밖에 둔다(Phase 1부터 `infra/`에 구조 테스트와 tflint가 붙는다). 버킷은 비용 할당 태그 `Project`가 결제 콘솔에 나타나 활성화한 뒤 지운다(나타나기까지 최대 24시간) |
+| Terraform 기초(provider, resource, variable, output, state, `import` 블록). 연습: S3 버킷 하나를 콘솔로 만들고 import해 `plan` "No changes"까지 맞춘 뒤 Terraform으로 지우기 | [학습 노트](notes/terraform-basics.md), [실습 모음](notes/terraform-exercises.md) | 완료(2026-11-25). 콘솔로 만든 버킷을 import한 뒤 Terraform으로 지웠다(CloudTrail `DeleteBucket` 14:53 KST, 사용자 에이전트 Terraform). 명령은 사용자가 직접 실행했다. 연습 코드는 저장소 밖 `C:\Users\soyeun\workspace\tf-practice`에 둔다(Phase 1부터 `infra/`에 구조 테스트와 tflint가 붙는다). 실습 모음의 실습 5~11은 Phase 1 콘솔 구축 전까지 한다 |
 | Bedrock 모델 접근 활성화, 서울 리전에서 Haiku 5.5·임베딩 모델 호출 확인 | Q-03, Q-04 답 | Q-04 끝(Titan V2 서울 직접 호출, 한국어 시험 통과). Q-03은 글로벌 추론 프로필을 쓰기로 결정([ADR-014](10-adr.md#adr-014-claude-haiku-55를-글로벌-교차-리전-추론-프로필로-호출한다), 2026-11-24). 2026-11-24 양식 제출과 이용 계약까지 마쳤으나 호출이 계속 거부돼 AWS Support에 문의했다(케이스 179550130900646). 만료된 결제 카드를 바꾸고 양식·계약을 다시 해도 거부됐다. 호출 확인은 답변 후(Phase 3 전까지 필요, 그 전 개발은 `BEDROCK_MODE=stub`). 시험 스크립트는 `scripts/phase0/bedrock_check.py` |
 | Terraform 프로바이더의 S3 Vectors·KB 지원 확인 | Q-06 답 | 완료. 프로바이더 6.71.0이 지원 |
 | S3 Vectors를 쓰는 KB의 필터 실측: 목록 필터(`listContains`·`equals`·`in`), `andAll`·`orAll` 조건 6개와 2단계 중첩, 키가 없는 문서, 빈 목록(`[]`) 메타데이터(받아주는지, 목록 필터에서 빠지는지). 테스트 문서 10개로 하고 리소스는 같은 날 지운다(비용 1센트 미만). 문서 확인 결과는 [API 명세 5.2](04-api-spec.md#52-조건--필터-변환) | Q-05 답, 필터 구조 확정 | 완료(2026-11-25). `scripts/phase0/q05_kb_filter_check.py` 하나로 생성 → 시험 21개 → 삭제(164초, 남은 리소스 0개). 설계 필터는 그대로 동작하고, 중첩은 2단계까지다. 빈 목록 문서는 색인되지 않아 표시값 `["UNKNOWN"]`을 쓰고, 동기화는 실패 문서 수까지 확인하기로 했다([API 명세 5.2](04-api-spec.md#52-조건--필터-변환)) |
@@ -108,6 +113,9 @@ gantt
 - 2026-11-25 현재: Haiku는 12:11 KST에도 거부됐고 Support 답변은 아직 없다. Budgets 임시 알림("실제 비용 $0.01 초과")은 만들었지만 11월 실제 비용이 약 $0.0002(S3, Bedrock 임베딩)라 울릴 수 없었다. 그래서 요청마다 $0.01인 Cost Explorer API를 2번 호출했다(서비스별·리전별 11월 비용 조회, 12:16 KST). 결제 데이터에 반영되면 메일이 온다. 콘솔 예산이 문서 설정과 다른 것도 찾았다(이름, 실제 85/100%, 이메일 직접 수신). Phase 1에서 콘솔 설정 그대로 가져온 뒤 코드로 맞춘다([인프라 명세 13.3](05-infrastructure.md#133-스택별-진행)).
 - 2026-11-25 12:19 KST: **Budgets 알림 메일 수신 확인(완료 기준 충족).** 예산 금액이 $0.01로 바뀌어 있어 예측 비용 $0.023이 예측 100% 알림을 울렸다. 실제 비용은 아직 $0.00이라 $0.01 임시 알림은 울리지 않았다. 남은 정리: 임시 알림 삭제(Phase 1 import 전에 콘솔에서). 예산 금액은 연습 단계라 월 $10으로 두고, Phase 1에서 가져온 뒤 코드로 $100으로 올린다([인프라 명세 13.3](05-infrastructure.md#133-스택별-진행)).
 - 2026-11-25 오후: **Q-05 실측 완료.** 이로써 완료 기준 3개(Budgets 메일, Q-03~Q-06 기록, WSL 명령)를 모두 채웠다. Haiku 호출 확인은 완료 기준에서 뺐다. 남은 작업은 import 연습, 비용 할당 태그 활성화와 연습 버킷 삭제, Budgets 정리다.
+- 2026-11-25 저녁: 비용 할당 태그 `Project`를 활성화했다. 이제 연습 버킷을 지워도 된다(import 연습을 마친 뒤 Terraform으로). 남은 작업은 import 연습과 $0.01 임시 알림 삭제다.
+- 2026-11-25 밤: $0.01 임시 알림 삭제를 확인했다(`describe-notifications-for-budget`). 그 자리에 있는 "실제 비용 $10 초과(절대값)" 알림은 사용자가 Terraform·Docker 연습 기간에 쓰려고 일부러 둔 것이다. 연습이 끝나 프로젝트를 시작할 때 금액을 $100으로 바꾼다([인프라 명세 13.3](05-infrastructure.md#133-스택별-진행)). Phase 0에 남은 작업은 import 연습이다(연습 폴더 `C:\Users\soyeun\workspace\tf-practice`).
+- 2026-11-25 밤: **import 연습 완료.** 사용자가 `tf-practice/02-import`에서 콘솔 버킷을 가져온 뒤 Terraform으로 지웠다(CloudTrail `DeleteBucket` 14:53 KST, 사용자 에이전트 Terraform. 계정의 S3 버킷은 0개). 이로써 **Phase 0 작업을 모두 마쳤다.** Haiku 호출 확인만 AWS Support 답변을 기다리며 Phase 3 전까지 하면 된다. 실습 모음은 실습 1을 시작했다(`init`까지). Phase 1은 11/30에 시작한다.
 
 ### Phase 1 기반 인프라 (W4~6)
 
@@ -262,4 +270,9 @@ PR로 병합한 작업은 커밋 해시 대신 **PR 번호**를 적는다. 스�
 | 2026-11-24 | 0 | 일정 14주 → 16주, Q-03 결정(글로벌 추론 프로필, ADR-014) | [#2](https://github.com/soyeun0327/fitjob/pull/2) |
 | 2026-11-24 | 0 | Anthropic 사용 사례 양식, Haiku 5.5 이용 계약, AWS Support 문의(호출은 아직 거부) | (콘솔·CLI) |
 | 2026-11-25 | 0 | Budgets 알림 메일 수신 확인(예측 100% 알림, 예산 금액 $0.01로 시험) | (콘솔) |
+| 2026-11-25 | 0 | 완료 기록에 커밋 해시 대신 PR 번호를 적도록 규칙 변경 | [#3](https://github.com/soyeun0327/fitjob/pull/3) |
+| 2026-11-25 | 0 | 비용 할당 태그 `Project` 활성화 | (콘솔) |
 | 2026-11-25 | 0 | Q-05 S3 Vectors KB 필터 실측, 빈 목록 표시값 `UNKNOWN`·동기화 실패 문서 확인 결정 | [#2](https://github.com/soyeun0327/fitjob/pull/2) |
+| 2026-11-25 | 0 | import 연습: 콘솔 버킷을 Terraform으로 가져온 뒤 Terraform으로 삭제(CloudTrail 확인). 연습 코드는 저장소 밖 | (저장소 밖) |
+| 2026-11-25 | 0 | Terraform 실습 모음 12개 작성(정답 코드 `fmt`·`validate` 확인), 질문 기록 Q12~Q14 | (커밋 전) |
+| 2026-11-26 | 0 | Terraform 실습 모음에 AWS 프로바이더 Registry 문서 읽는 법(1.6), 실습 3 참고 메모 3개 추가 | (커밋 전) |
