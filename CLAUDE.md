@@ -17,10 +17,10 @@
 - 하네스(권한·훅·검증 규칙, 단계별 구축 순서, 실수 → 규칙 기록): docs/harness.md
 - 웹 UI: docs/design-system/README.md (Wanted Design System. React로 구현할 때 montage-react 스킬 참고)
 
-## 현재 단계: Phase 0 준비 진행 중 (2026-11-04 앞당겨 시작)
+## 현재 단계: Phase 0 작업 완료 (2026-11-25), Phase 1은 2026-11-30 시작
 - 설계 문서 01~10 v0.2 완료. 코드 없음. 공개 저장소 github.com/soyeun0327/fitjob (`main` 보호 설정 예정).
 - W0: 사람인 API 심사 중, 공공기관 채용정보 API 키 활성화됨(2026-11-03, 코드 매핑 → DB 스키마 7.1, ADR-013), AWS Budgets 알림 만듦(연습 단계라 지금 월 $10, Phase 1에서 import한 뒤 코드로 $100, 인프라 명세 13.3)
-- Phase 0 끝낸 것: 계정 보안, WSL 도구와 `aws login --remote`(`soyeun-admin`), 저장소·하네스, Q-04·Q-06·Q-07, Q-03 결정(ADR-014), Budgets 메일 확인, Q-05 실측. 남은 것: import 연습, 비용 할당 태그, Q-03 호출 확인(AWS Support 답변 대기)
+- Phase 0 끝낸 것: 계정 보안, WSL 도구와 `aws login --remote`(`soyeun-admin`), 저장소·하네스, Q-04·Q-06·Q-07, Q-03 결정(ADR-014), Budgets 메일 확인, Q-05 실측, 비용 할당 태그, import 연습(연습 코드는 저장소 밖 `workspace/tf-practice`). 남은 것: Q-03 호출 확인(AWS Support 답변 대기, Phase 3 전까지)
 - 전체 일정 16주 (2026-11-09 ~ 2027-02-28, Phase 0 지연으로 2주 연기). 단계별 작업과 완료 기준은 docs/09-roadmap.md
 - 작업을 끝내면 docs/09-roadmap.md 7장 완료 기록에 날짜·작업·커밋(PR로 병합하면 PR 번호)을 남긴다
 

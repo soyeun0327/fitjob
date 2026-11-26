@@ -7,6 +7,8 @@
 | 변경 | Q6 추가: 2주 만에 다시 파악한 현재 위치와 Phase 0 남은 일 (2026-11-24) |
 | 변경 | Q8에 결제 카드 교체 후 양식·계약 재시도 결과 추가. Q9(S3 Vectors 필터 실측), Q10(Support 답변 확인법) 추가 (2026-11-24) |
 | 변경 | Q11 추가: Phase 0 마감 5일 전 남은 일과 순서, Budgets 조회 결과와 결정, Q-05 실측 결과와 결정 (2026-11-25) |
+| 변경 | Q12(스쿼시 병합과 완료 기록의 커밋 해시), Q13(비용 할당 태그를 활성화하면 결제 화면에서 달라지는 것) 추가 (2026-11-25) |
+| 변경 | Q14 추가: 프로바이더가 플러그인 캐시에 저장됐는지 확인하는 법. lock 파일이 없는 새 폴더는 캐시가 있어도 다시 내려받는 것을 시험으로 확인해 6번을 고침 (2026-11-25) |
 | 목적 | 작업 중에 나온 질문과 Claude의 답을 학습용으로 남긴다. 진행 상태는 시간이 지나면 바뀌므로 최신 기준은 [로드맵](../09-roadmap.md)이다 |
 
 ---
@@ -293,3 +295,76 @@ Bedrock에서 Anthropic(Claude를 만든 회사) 모델을 처음 쓰는 AWS 계
 | 2. 동기화는 완료인데 실패 문서가 있음 | 실패 문서가 1건 이상이면 동기화 실패로 처리하고 알린다. 개수는 `ingestion_runs.kb_docs_failed`에 남긴다 | 1A를 따르면 실패는 원래 0건이어야 하므로, 생겼다면 이상 상황이다 |
 
 **예산 금액 $10 (13:56 KST).** 사용자가 연습 단계에 맞춰 예산을 월 $10으로 바꿨다. Phase 1에서 가져온 뒤 코드로 $100으로 올리고, 그때 Claude가 다시 알려 주기로 했다. RDS를 계속 켜는 Phase 2(월 약 $25~30) 전에는 반드시 올려야 한다([인프라 명세 13.3](../05-infrastructure.md#133-스택별-진행)).
+
+### Q12. Squash and merge가 뭐였지?
+
+PR에 든 커밋 여러 개를 **하나로 합쳐** `main`에 넣는 병합 방식이다(squash는 "눌러 찌그러뜨린다"는 뜻). PR #2를 예로 들면, 브랜치에 커밋이 2개(`950965b` 문서 반영, `c3b3755` 해시 반영) 있었다.
+
+| 방식 | `main`에 남는 것 | 특징 |
+|---|---|---|
+| Create a merge commit (PR #1) | 브랜치 커밋 2개 + "Merge pull request" 커밋 | 과정이 모두 남지만 `main`이 지저분해진다 |
+| **Squash and merge** (저장소 규칙, PR #2·#3) | 새 커밋 1개 (PR #2는 `d7e2baf`) | PR 1개 = 커밋 1개라 `main`을 읽기 쉽다. 자세한 과정은 PR 페이지에 남는다 |
+| Rebase and merge | 브랜치 커밋 2개가 새 해시로 다시 쌓임 | 병합 커밋은 없지만 커밋 수는 그대로다 |
+
+**스쿼시하면 생기는 일**
+
+| 일 | 대응 |
+|---|---|
+| 브랜치에서 만든 커밋의 해시가 `main`에 남지 않는다. 로드맵 7장에 적은 `950965b`가 `main`에 없는 해시가 됐다 | 완료 기록에 커밋 해시 대신 **PR 번호**를 적기로 했다(답: `1A`, PR #3). 번호는 스쿼시해도 바뀌지 않는다 |
+| PR 제목이 그대로 `main`의 커밋 제목이 된다. PR #2는 제목을 고치지 않아 브랜치 이름에서 나온 `Docs/phase0 q03 q05 (#2)`가 들어갔다 | PR을 만들 때 제목 칸을 Conventional Commits 형식(`docs: ...`)으로 먼저 바꾼다. 이미 들어간 제목은 `main` 강제 푸시가 필요해 그대로 둔다 |
+| Git은 스쿼시된 브랜치를 "병합 안 됨"으로 본다 | 로컬 브랜치는 `main`과 내용이 같은 것을 확인한 뒤 `git branch -D`로 지운다 |
+
+### Q13. 비용 할당 태그 `Project`를 활성화했는데, 결제 화면에서 어떻게 달라져?
+
+**청구서(Bills) 화면은 그대로다.** 청구서는 서비스별로만 나온다. 달라지는 곳은 비용을 나눠 보는 화면이다.
+
+| 화면 | 활성화 전 | 활성화 후 |
+|---|---|---|
+| Cost Explorer | 서비스·리전·계정 같은 기준으로만 묶을 수 있다 | 그룹 기준(Group by)에 **태그 → `Project`**가 생긴다. 비용이 `fitjob`과 "`Project` 태그 없음"으로 나뉜다. 필터로 `Project = fitjob`만 골라 볼 수도 있다 |
+| Budgets | 계정 전체 비용만 본다 | 예산 필터에 태그를 걸어 "FitJob 리소스 비용만" 보는 예산을 만들 수 있다 |
+| 비용 보고서(Data Exports) | 태그 열이 없다 | `Project` 태그 열이 생긴다 |
+
+**보는 법.** 결제 및 비용 관리 → Cost Explorer → 오른쪽 보고서 설정에서 그룹화 기준(Group by)을 "태그"로 바꾸고 `Project`를 고른다.
+
+**주의할 점**
+
+| 항목 | 내용 |
+|---|---|
+| 반영 시간 | 활성화한 뒤 최대 24시간이 지나야 Cost Explorer에 나타난다. 실제로 14:43 KST에 활성화(`list-cost-allocation-tags`에서 `Active`)하고 7분 뒤 열어 보니 Cost Explorer의 태그 목록에 `Project`가 없었다. 상태는 결제 및 비용 관리 → 비용 할당 태그 화면에서 본다 |
+| 과거 비용 | 기본은 활성화한 뒤의 비용부터 태그로 나뉜다. 비용 할당 태그 화면의 소급 적용(backfill)으로 최대 12개월 전까지 다시 계산하도록 요청할 수 있다 |
+| 태그가 붙지 않는 비용 | 태그는 리소스에 붙는다. 그래서 리소스가 아닌 비용은 "태그 없음"으로 간다. 예: Bedrock 모델 호출(KB 임베딩, Haiku. 애플리케이션 추론 프로필을 따로 만들어 태그를 붙이면 나눌 수 있다), Cost Explorer API 요금, 세금, 도메인 등록비. 그래서 `Project = fitjob` 합계는 FitJob 전체 비용보다 작다 |
+| 지금 보이는 것 | 태그가 붙은 리소스는 연습 버킷 하나이고 비용도 거의 0원이라 그래프가 비어 보인다. Phase 1에 NAT 인스턴스를 켜면 처음으로 의미 있는 숫자가 나온다 |
+
+**이 프로젝트에서 쓰는 곳.** 로드맵의 "매월 비용 내역(단계별 예상과 실제 비교)"과 Phase 7 비용 리포트([로드맵 4장](../09-roadmap.md#4-포트폴리오-기록-체크리스트))다. 계정 전체 비용과 `Project = fitjob` 비용을 함께 적으면, 태그로 잡히지 않는 비용이 얼마인지도 보인다.
+
+### Q14. `~/.terraformrc`에 캐시 폴더를 설정하고 `terraform init`을 했는데, 프로바이더가 캐시에 저장됐는지 어떻게 확인해?
+
+캐시가 동작하면 프로바이더 **원본은 캐시 폴더에 한 벌만** 있고, 실습 폴더의 `.terraform` 안에는 그 원본을 가리키는 **바로가기(심볼릭 링크)**만 생긴다. 이 두 가지를 확인한다. 명령은 WSL 터미널에서 실행한다.
+
+| # | 명령 | 캐시가 동작하면 | 확인하는 것 |
+|---|---|---|---|
+| 1 | `cat ~/.terraformrc` | `plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"` | 설정 파일이 있고 오타가 없다 |
+| 2 | `find ~/.terraform.d/plugin-cache -type f` | `.../registry.terraform.io/hashicorp/aws/6.xx.x/linux_amd64/terraform-provider-aws_v6.xx.x_x5` 한 줄 | 캐시 폴더에 프로바이더 원본이 있다. 폴더 이름이 `주소/회사/이름/버전/OS_CPU` 순서다 |
+| 3 | `du -sh ~/.terraform.d/plugin-cache` | 800MB쯤(6.74.0은 775MB) | 원본 크기가 캐시 쪽에 잡힌다 |
+| 4 | 실습 폴더에서 `ls -l .terraform/providers/registry.terraform.io/hashicorp/aws/*/` | `linux_amd64 -> /home/<사용자>/.terraform.d/plugin-cache/.../linux_amd64` | `->`는 바로가기라는 뜻이다. 실습 폴더는 캐시의 원본을 가리킬 뿐이다 |
+| 5 | 실습 폴더에서 `du -sh .terraform` | 몇 KB | 실습 폴더에는 원본이 없다. 캐시가 없으면 여기가 800MB쯤이다 |
+| 6 | `.terraform.lock.hcl`이 있는 폴더에서 `terraform init` (예: 실습 폴더의 `.terraform`만 지우고 다시) | `- Using hashicorp/aws v6.xx.x from the shared cache directory` | 가장 확실한 증거다. 내려받지 않고 캐시에서 꺼내 썼다 |
+
+처음 `init`할 때는 캐시가 비어 있으므로 캐시를 켜도 평소처럼 `Installing hashicorp/aws ...` → `Installed ... (signed by HashiCorp)`가 나온다. 그래서 첫 폴더는 2~5번으로 확인한다.
+
+**새 폴더는 캐시가 있어도 다시 내려받는다.** lock 파일(`.terraform.lock.hcl`)이 없는 새 폴더에서는 Terraform 1.4부터 캐시를 쓰지 않고 레지스트리에서 다시 받는다. lock 파일에 모든 OS용 체크섬을 적으려면 레지스트리에서 받아야 하기 때문이다. 받은 것은 캐시에 넣고 폴더에는 바로가기만 만들므로 **디스크에는 여전히 한 벌만** 남는다. 아끼는 것은 디스크이고, 새 폴더의 다운로드 시간은 아끼지 못한다. 2026-11-25에 작은 프로바이더(`hashicorp/null`)로 시험한 결과다.
+
+| 폴더 상태 | `init` 출력 | 내려받음 | 폴더 안 |
+|---|---|---|---|
+| 새 폴더, 캐시 비어 있음 | `Installing` → `Installed ... (signed by HashiCorp)` | 예 | 바로가기 |
+| 새 폴더, lock 파일 없음, 캐시에 있음 | `Installing` → `Installed ... (signed by HashiCorp)` | **예** | 바로가기 |
+| lock 파일 있음 (`.terraform`만 지우고 다시, 또는 다른 폴더의 lock 파일을 복사) | `Using ... from the shared cache directory` | 아니오 | 바로가기 |
+
+새 실습 폴더에서도 다운로드를 건너뛰고 싶으면, 같은 프로바이더를 쓰는 이전 실습 폴더의 `.terraform.lock.hcl`을 새 폴더에 복사한 뒤 `init`한다. lock 파일은 프로바이더 버전과 체크섬을 적은 파일이라 복사해도 된다. 대신 새 폴더도 같은 버전에 고정된다.
+
+**캐시에 없을 때**
+
+| 증상 | 흔한 원인 | 해결 |
+|---|---|---|
+| 2번에 아무것도 없고 4번에 `->`가 없다. 5번이 800MB쯤이다 | `.terraformrc`를 만들기 전에 `init`했다. 또는 파일 이름이나 경로에 오타가 있다 | 1번을 확인한 뒤, 실습 폴더의 `.terraform` 폴더만 지우고 `terraform init`을 다시 한다. `.terraform.lock.hcl`(버전 고정)과 `terraform.tfstate`(장부)는 지우지 않는다 |
+| `find: '.../plugin-cache': No such file or directory` | 캐시 폴더를 만들지 않았다. Terraform은 캐시 폴더를 스스로 만들지 않는다 | `mkdir -p ~/.terraform.d/plugin-cache` 후 위와 같이 다시 `init` |
