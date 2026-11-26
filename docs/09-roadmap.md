@@ -28,6 +28,7 @@
 | 변경 | Phase 0 상태 줄: $10 절대값 알림은 연습용으로 남김, 연습 폴더 위치 (2026-11-25) |
 | 변경 | Phase 0 Terraform 행 완료(import 후 Terraform으로 버킷 삭제), Phase 0 작업 모두 끝남, 7장에 2행 추가 (2026-11-25) |
 | 변경 | 7장에 실습 모음 Registry 절·실습 3 참고 메모 추가 행 (2026-11-26) |
+| 변경 | 7장: `(커밋 전)` 2행을 PR #4로 고침 (2026-11-26) |
 | 가정 | 1인, 주 20시간, 2026-11-09(월) 시작, 16주 (콘솔 구축 후 Terraform으로 가져오는 방식이라 Phase 1·3을 1주씩 늘림. Phase 0이 2주 늘어남) |
 
 > 주당 투입 시간은 20시간으로 확인했다(2026-11-10, [요구사항 Q-07](01-requirements.md#9-미결-사항-구현-전-확인)).
@@ -274,5 +275,5 @@ PR로 병합한 작업은 커밋 해시 대신 **PR 번호**를 적는다. 스�
 | 2026-11-25 | 0 | 비용 할당 태그 `Project` 활성화 | (콘솔) |
 | 2026-11-25 | 0 | Q-05 S3 Vectors KB 필터 실측, 빈 목록 표시값 `UNKNOWN`·동기화 실패 문서 확인 결정 | [#2](https://github.com/soyeun0327/fitjob/pull/2) |
 | 2026-11-25 | 0 | import 연습: 콘솔 버킷을 Terraform으로 가져온 뒤 Terraform으로 삭제(CloudTrail 확인). 연습 코드는 저장소 밖 | (저장소 밖) |
-| 2026-11-25 | 0 | Terraform 실습 모음 12개 작성(정답 코드 `fmt`·`validate` 확인), 질문 기록 Q12~Q14 | (커밋 전) |
-| 2026-11-26 | 0 | Terraform 실습 모음에 AWS 프로바이더 Registry 문서 읽는 법(1.6), 실습 3 참고 메모 3개 추가 | (커밋 전) |
+| 2026-11-25 | 0 | Terraform 실습 모음 12개 작성(정답 코드 `fmt`·`validate` 확인), 질문 기록 Q12~Q14 | [#4](https://github.com/soyeun0327/fitjob/pull/4) |
+| 2026-11-26 | 0 | Terraform 실습 모음에 AWS 프로바이더 Registry 문서 읽는 법(1.6), 실습 3 참고 메모 3개 추가 | [#4](https://github.com/soyeun0327/fitjob/pull/4) |
