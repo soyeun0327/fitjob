@@ -277,4 +277,4 @@ PR로 병합한 작업은 커밋 해시 대신 **PR 번호**를 적는다. 스�
 | 2026-11-25 | 0 | import 연습: 콘솔 버킷을 Terraform으로 가져온 뒤 Terraform으로 삭제(CloudTrail 확인). 연습 코드는 저장소 밖 | (저장소 밖) |
 | 2026-11-25 | 0 | Terraform 실습 모음 12개 작성(정답 코드 `fmt`·`validate` 확인), 질문 기록 Q12~Q14 | [#4](https://github.com/soyeun0327/fitjob/pull/4) |
 | 2026-11-26 | 0 | Terraform 실습 모음에 AWS 프로바이더 Registry 문서 읽는 법(1.6), 실습 3 참고 메모 3개 추가 | [#4](https://github.com/soyeun0327/fitjob/pull/4) |
-| 2026-11-28 | 0 | Terraform 실습 모음에 기초 연습 문제 5개, 실습 4 참고 메모 3개 추가(연습 문제 정답 코드 `fmt`·`validate`, 처음 plan 개수, 오류 메시지를 실제 출력으로 확인) | (커밋 전) |
+| 2026-11-28 | 0 | Terraform 실습 모음에 기초 연습 문제 5개, 실습 4 참고 메모 3개 추가(연습 문제 정답 코드 `fmt`·`validate`, 처음 plan 개수, 오류 메시지를 실제 출력으로 확인) | [#6](https://github.com/soyeun0327/fitjob/pull/6) |
