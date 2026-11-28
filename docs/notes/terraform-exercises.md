@@ -11,6 +11,8 @@
 | 변경 | 1.2 캐시 설명 고침: lock 파일이 없는 새 폴더는 다시 내려받는다(디스크에는 한 벌만 남음) (2026-11-25) |
 | 변경 | 1.6 AWS 프로바이더와 Registry 문서 읽는 법 추가, 1.5에 인자 오류 2행 추가, 실습 1·6에서 1.6 연결 (2026-11-26) |
 | 변경 | 실습 3에 참고 메모 3개 추가: `variables.tf`의 역할과 이름, `var.` 접두어, `data.` 접두어(실습 모음 페이지에서 추가한 내용 반영) (2026-11-26) |
+| 변경 | 실습 4 다음에 기초 연습 문제 5개 추가. 정답 코드 `fmt -check`·`validate`, 처음 plan 개수, 오류 메시지를 실제 출력으로 확인 (2026-11-28) |
+| 변경 | 실습 4에 참고 메모 3개 추가: `aws_ssm_parameter`, `count.index`, `each.key`·`each.value`(실습 모음 페이지에서 추가한 내용 반영, 오타 1곳 고침) (2026-11-28) |
 
 ---
 
@@ -34,6 +36,7 @@
 | 12 | [정리](#4-실습-12-정리) | 역순 삭제, 남은 리소스 확인 | `make down`, RB-08 | 30분 | 0 |
 
 - 합계 약 10시간이다. **Phase 0 완료에 필요한 것은 실습 2(기초 노트 8장)뿐이다.** 실습 5~11은 Phase 1에서 콘솔 구축을 시작하기 전까지 하면 된다.
+- 실습 4 다음에 [기초 연습 문제](#기초-연습-문제) 5개가 있다. 실습 1~4의 개념을 정답을 보지 않고 다시 써 보는 선택 과제다. 약 2시간 30분 걸리고 비용은 없다.
 - 실습 5·6에서 만든 것(연습 VPC, state 버킷)은 실습 7~11에서 계속 쓴다. 무료라 켜 두어도 되고, 실습 12에서 한꺼번에 지운다.
 - 비용은 실습 11만 든다. t4g.nano는 서울에서 시간당 $0.0052(Pricing API로 2026-11-25 확인)이고, 퍼블릭 IPv4가 시간당 $0.005다. 1시간 안에 지우면 2센트를 넘지 않는다.
 
@@ -598,6 +601,613 @@ output "count_names" {
 
 output "each_names" {
   value = [for p in aws_ssm_parameter.by_each : p.name]
+}
+```
+
+</details>
+
+**참고 메모** (실습하면서 나온 질문)
+
+<details>
+<summary><code>aws_ssm_parameter</code>는 무엇인가?</summary>
+
+AWS Systems Manager의 **파라미터 스토어(Parameter Store)에 값 하나를 저장하는 리소스**다. 파라미터 스토어는 AWS 안의 설정값 저장소다. 이름과 값을 한 쌍으로 저장하고, 이름은 폴더 경로처럼 붙인다. 앱이나 서버는 실행할 때 이름으로 값을 꺼내 간다. 그래서 DB 주소 같은 값을 코드나 서버에 박아 두지 않아도 된다.
+
+| 이름 | 값 |
+|---|---|
+| `/fitjob/prod/db/endpoint` | `fitjob-db.xxxx.ap-northeast-2.rds.amazonaws.com` |
+| `/fitjob-practice/each/alpha` | `alpha` |
+
+| 인자 | 뜻 |
+|---|---|
+| `name` | 경로 모양의 이름 |
+| `type` | `String`(일반 문자열), `StringList`(쉼표로 이은 목록), `SecureString`(암호화 저장. 비밀번호·API 키용) |
+| `value` | 저장할 값 |
+
+- 이 실습에서 쓰는 이유: 표준(Standard) 파라미터는 만들어 두기만 해서는 무료라 마음껏 만들었다 지울 수 있다. 진짜 프로젝트에서도 `database` 스택이 DB 주소를 `/fitjob/prod/db/endpoint`에 넣고 앱이 거기서 읽는다(실습 7의 답).
+- 확인: 콘솔 **Systems Manager → 파라미터 스토어**, 또는 `aws ssm get-parameter --name /fitjob-practice/each/alpha --query Parameter.Value --output text`
+- 실습 11에서는 반대로 `data "aws_ssm_parameter"`로, AWS가 공개해 둔 최신 AMI ID를 읽기만 한다.
+
+</details>
+
+<details>
+<summary><code>count</code> 쪽은 무엇을 만들고, <code>count.index</code>는 무엇인가?</summary>
+
+`count.index`는 **지금 몇 번째를 만드는 중인지 나타내는 번호**다. `count = 3`이면 블록을 3번 찍어 내고, 매번 0, 1, 2를 차례로 넣는다(0부터 시작). `var.`처럼 Terraform이 정해 둔 이름이고, `count`를 쓴 블록 안에서만 쓸 수 있다.
+
+| `count.index` | `var.names[count.index]` | `name` | 주소 |
+|---|---|---|---|
+| 0 | `"alpha"` | `/fitjob-practice/count/alpha` | `by_count[0]` |
+| 1 | `"beta"` | `/fitjob-practice/count/beta` | `by_count[1]` |
+| 2 | `"gamma"` | `/fitjob-practice/count/gamma` | `by_count[2]` |
+
+- 이름 구분자는 `.`이 아니라 `/`다.
+- `length(var.names)`: 목록의 길이(3). `names`에 하나를 더 넣으면 자동으로 4개가 된다.
+- `var.names[count.index]`: 목록에서 그 번호의 값을 꺼낸다. `${...}`는 문자열 안에 값을 끼워 넣는다.
+- Terraform은 이것들을 **번호**로 구분한다. 그래서 4번에서 `"alpha"`를 빼면 `beta`가 `[0]`, `gamma`가 `[1]`로 당겨지고, 각 번호의 `name`이 바뀌니 교체가 일어난다.
+
+</details>
+
+<details>
+<summary><code>for_each</code> 쪽에서 <code>each.key</code>와 <code>each.value</code>는 어떻게 들어가나?</summary>
+
+`for_each`는 받은 모음의 **원소마다** 블록을 하나씩 찍어 내고, 그때마다 `each.key`와 `each.value`에 그 원소의 값을 넣는다.
+
+**`toset(var.names)`: 목록을 집합으로 바꾼다.** `for_each`는 목록을 직접 받지 않고 집합이나 맵만 받는다. 목록은 순서(번호)로 구분하는데, `for_each`는 이름으로 구분하려는 것이라서다. 집합이 되면 중복이 사라지고 순서는 의미가 없어진다.
+
+**집합일 때는 key = value = 원소다.** 집합에는 키가 따로 없어서 원소 자체를 둘 다로 쓴다. 그래서 `value = each.key`로 써도 결과가 같다.
+
+| `each.key` | `each.value` | `name` | 주소 |
+|---|---|---|---|
+| `"alpha"` | `"alpha"` | `/fitjob-practice/each/alpha` | `by_each["alpha"]` |
+| `"beta"` | `"beta"` | `/fitjob-practice/each/beta` | `by_each["beta"]` |
+| `"gamma"` | `"gamma"` | `/fitjob-practice/each/gamma` | `by_each["gamma"]` |
+
+**맵을 넘기면 key와 value가 다르다.** 맵의 키가 `each.key`, 값이 `each.value`다.
+
+```hcl
+resource "aws_ssm_parameter" "by_map" {
+  for_each = {
+    alpha = "first"
+    beta  = "second"
+  }
+  name  = "/fitjob-practice/map/${each.key}"   # alpha, beta
+  type  = "String"
+  value = each.value                           # first, second
+}
+```
+
+실습 5의 서브넷이 이 방식이다. 키는 `"public-2a"` 같은 이름, 값은 `{ cidr, az, tier }` 묶음이라 `each.value.cidr`처럼 안의 값을 꺼낸다.
+
+| | `count` | `for_each` |
+|---|---|---|
+| 받는 것 | 숫자 | 집합 또는 맵 |
+| 블록 안에서 쓰는 것 | `count.index` (0, 1, 2) | `each.key`, `each.value` |
+| 주소 | `by_count[0]` | `by_each["alpha"]` |
+| 하나를 빼면 | 뒤 번호가 당겨져 교체된다 | 뺀 것만 지워진다 |
+
+</details>
+
+### 기초 연습 문제
+
+실습 1~4를 따라 했어도 빈 파일 앞에서는 막힐 수 있다. 정답 코드를 읽고 이해하는 것과 스스로 쓰는 것은 다른 기술이다. 아래 5문제는 실습 1~4의 개념을 다른 리소스와 다른 모양으로 다시 쓰게 한다. 모두 무료 리소스다.
+
+**푸는 순서** (모든 문제에 똑같이 쓴다)
+
+| 단계 | 할 일 | 막히면 |
+|---|---|---|
+| 1 | 과제 문장에서 "무엇을 만드나"를 찾아 리소스 종류를 정한다 | Registry에서 키워드로 찾는다([1.6](#16-aws-프로바이더와-registry-문서)) |
+| 2 | 그 리소스 문서의 Example Usage를 복사한다 | |
+| 3 | Argument Reference에서 `Required`를 채우고, 과제에 나온 설정에 맞는 `Optional`을 찾는다 | |
+| 4 | 같은 문자열을 두 번 쓰거나 다른 리소스의 값을 쓰는 곳은 참조·`var.`·`local.`로 바꾼다 | 실습 3 참고 메모의 접두어 표 |
+| 5 | `fmt` → `validate` → **요약 줄을 먼저 예상해 적고** `plan` | 예상과 다르면 왜 다른지 찾는다. 그게 공부다 |
+
+- 힌트와 정답은 접어 두었다. 10분 넘게 막히면 힌트 1, 그래도 막히면 힌트 2, 마지막에 정답을 연다.
+- 폴더는 문제마다 만든다(`d1-log-group/` 등). 이전 실습 폴더의 lock 파일을 복사한 뒤 `init`하면 프로바이더를 다시 내려받지 않는다([Q14](qa-log.md#q14-terraformrc에-캐시-폴더를-설정하고-terraform-init을-했는데-프로바이더가-캐시에-저장됐는지-어떻게-확인해)). 예: 새 폴더에서 `cp ../04-count-foreach/.terraform.lock.hcl .`
+- 공통 코드([1.3](#13-공통-코드))는 모든 문제의 `main.tf` 맨 위에 둔다. 문제 2·4는 `Env = "prod"`를 `Env = var.env`로 바꾼다.
+- 정답 코드는 Terraform 1.17.1·AWS 프로바이더 6.74.0에서 `fmt -check`·`validate`를 통과했다. 처음 plan 개수와 표에 적은 오류 메시지도 실제 출력으로 확인했다(2026-11-28, 리소스는 만들지 않음).
+
+| # | 문제 | 다시 쓰는 개념 | 관련 실습 | 시간 |
+|---|---|---|---|---|
+| 1 | [처음 보는 리소스 쓰기](#문제-1-처음-보는-리소스-쓰기) | Registry 읽기, 참조, `~`와 `-/+` | 1, 1.6 | 30분 |
+| 2 | [plan 결과 미리 맞히기](#문제-2-plan-결과-미리-맞히기) | count·for_each 주소, `default_tags` | 3, 4 | 30분 |
+| 3 | [오류 메시지 읽고 고치기](#문제-3-오류-메시지-읽고-고치기) | 접두어, 블록 문법, `${}` | 3 | 20분 |
+| 4 | [맵으로 앱 설정 넣기](#문제-4-맵으로-앱-설정-넣기) | `map` 변수, 맵 `for_each`, `for` 식 output | 3, 4 | 40분 |
+| 5 | [스위치로 켜고 끄기](#문제-5-스위치로-켜고-끄기) | `bool` 변수, `count = 조건 ? 1 : 0`, `[0]` | 3, 4 | 30분 |
+
+### 문제 1. 처음 보는 리소스 쓰기
+
+| 항목 | 내용 |
+|---|---|
+| 목표 | 한 번도 안 써 본 리소스를 문서만 보고 쓴다. 고쳐지는 변경(`~`)과 교체되는 변경(`-/+`)을 구별한다 |
+| 폴더 | `d1-log-group/` |
+| 리소스 | CloudWatch 로그 그룹. 로그를 넣지 않으면 무료다. 실제로 `storage` 스택이 API 로그 그룹 `/fitjob/prod/api`(보존 30일)를 만든다([인프라 명세 9장](../05-infrastructure.md#9-관측알림)) |
+
+**과제.** 공통 코드 아래에 다음 2개를 쓴다. 라벨(리소스 이름)은 `api`, `log_group_arn`으로 한다.
+
+1. CloudWatch 로그 그룹 `/fitjob-practice/api`. 로그는 7일 동안 보관한다.
+2. SSM 파라미터 `/fitjob-practice/log-group-arn`. 값은 1번 로그 그룹의 ARN이고, `type`은 `String`이다.
+
+조건: ARN을 문자열로 적지 않는다.
+
+<details>
+<summary>힌트 1</summary>
+
+- Registry에서 `cloudwatch log group`으로 찾는다. 리소스 종류는 `aws_cloudwatch_log_group`이고, 문서 주소 끝은 `resources/cloudwatch_log_group`이다.
+- "7일 보관"에 맞는 인자를 Argument Reference에서 찾는다. 이름에 `retention`이 들어 있다.
+
+</details>
+
+<details>
+<summary>힌트 2</summary>
+
+- 로그 그룹 이름은 `name`, 보관 기간은 `retention_in_days`다.
+- ARN은 Attribute Reference의 `arn`이다. 참조 모양은 `종류.라벨.속성`이다.
+- SSM 파라미터는 실습 4에서 쓴 `aws_ssm_parameter`다.
+
+</details>
+
+**실행**
+
+| # | 할 일 | 기대 결과 | 배우는 것 |
+|---|---|---|---|
+| 1 | 요약 줄을 예상해 적고 `terraform plan` | `Plan: 2 to add`. 로그 그룹 `arn`은 `(known after apply)`, 파라미터 `value`는 `(sensitive value)` | `value`는 문서에 "plan에서 항상 민감 값으로 표시한다"고 적혀 있다. 그래서 아직 모르는 값도 가려서 보여 준다 |
+| 2 | `retention_in_days = 10`으로 바꾸고 `terraform validate` | `expected retention_in_days to be one of [0 1 3 5 7 14 30 ...], got 10` | 허용값이 정해진 인자는 AWS에 묻기 전에 걸린다. 허용값 목록은 문서의 인자 설명에 있다 |
+| 3 | 7로 되돌리고 `terraform apply` | 로그 그룹이 `Creation complete`된 뒤 파라미터가 만들어진다 | 참조가 순서를 만든다 |
+| 4 | `terraform console`에서 `aws_cloudwatch_log_group.api.arn`을 입력하고 `exit` | `arn:aws:logs:ap-northeast-2:<계정 번호>:log-group:/fitjob-practice/api` | 만든 뒤의 값은 console로 본다 |
+| 5 | `retention_in_days`를 14로 바꾸고, 예상한 뒤 `plan` → `apply` | 로그 그룹만 `~ update in-place`. `0 to add, 1 to change, 0 to destroy` | `Forces new resource`가 없는 인자는 고쳐진다 |
+| 6 | 이름을 `/fitjob-practice/web`으로 바꾸고, 예상한 뒤 `plan` (**apply하지 않는다**) | 로그 그룹 `-/+`와 `# forces replacement`, 파라미터 `~`. `1 to add, 1 to change, 1 to destroy` | 아래 질문 |
+| 7 | 이름을 되돌리고 `terraform destroy` | `2 destroyed` | |
+
+**생각해 볼 질문.** 실습 1의 6번에서는 버킷 이름을 바꾸자 딸린 설정 2개도 교체(`-/+`)됐다. 이번 6번에서는 파라미터가 교체되지 않고 `~`다. 무엇이 다를까?
+
+<details>
+<summary>답</summary>
+
+딸린 리소스가 교체되는지는 **딸린 리소스 쪽에서 바뀌는 인자**가 `Forces new resource`인지에 달려 있다.
+
+| | 딸린 리소스에서 바뀌는 인자 | 교체 대상인가 | 결과 |
+|---|---|---|---|
+| 실습 1의 6번 | 퍼블릭 접근 차단·버전 관리의 `bucket` | 예. 다른 버킷을 가리키게 된다 | `-/+` |
+| 문제 1의 6번 | 파라미터의 `value` | 아니오 | `~` |
+
+문서에 표시가 없어도 교체될 수 있다. `aws_ssm_parameter`의 `name`은 문서 인자 줄에 `Forces new resource`가 없다. 하지만 프로바이더 소스에는 교체 대상(`ForceNew`)으로 되어 있다(2026-11-28, 6.74.0 소스 확인). 실습 4의 4번에서 count 쪽이 교체된 이유다. 그래서 최종 판단은 plan의 `# forces replacement`로 한다.
+
+</details>
+
+<details>
+<summary>정답 코드 (공통 코드 아래)</summary>
+
+```hcl
+resource "aws_cloudwatch_log_group" "api" {
+  name              = "/fitjob-practice/api"
+  retention_in_days = 7
+}
+
+resource "aws_ssm_parameter" "log_group_arn" {
+  name  = "/fitjob-practice/log-group-arn"
+  type  = "String"
+  value = aws_cloudwatch_log_group.api.arn
+}
+```
+
+</details>
+
+### 문제 2. plan 결과 미리 맞히기
+
+| 항목 | 내용 |
+|---|---|
+| 목표 | 코드를 바꾸기 전에 plan 결과를 맞힌다. apply 전에 plan을 읽는 눈을 기른다 |
+| 폴더 | `d2-predict/` |
+
+**준비.** 공통 코드의 `Env = "prod"`를 `Env = var.env`로 바꾸고, 그 아래에 다음 코드를 붙인다. `terraform apply` → `6 added`.
+
+```hcl
+variable "env" {
+  type    = string
+  default = "prod"
+}
+
+variable "names" {
+  type    = list(string)
+  default = ["red", "green", "blue"]
+}
+
+resource "aws_ssm_parameter" "by_count" {
+  count = length(var.names)
+  name  = "/fitjob-practice/predict/count/${var.names[count.index]}"
+  type  = "String"
+  value = var.names[count.index]
+}
+
+resource "aws_ssm_parameter" "by_each" {
+  for_each = toset(var.names)
+  name     = "/fitjob-practice/predict/each/${each.key}"
+  type     = "String"
+  value    = each.value
+}
+```
+
+**과제.** 아래 변경마다 세 가지를 한다.
+
+1. 코드를 고치기 전에 요약 줄(`N to add, N to change, N to destroy`)과 바뀌는 주소를 적는다.
+2. 고친 뒤 `terraform plan`으로 맞춰 본다.
+3. **apply하지 않고** 원래대로 되돌린다. 매번 준비 상태(6개)에서 시작한다.
+
+| # | 변경 | 내 예상 |
+|---|---|---|
+| A | `names` 끝에 `"black"`을 추가한다 → `["red", "green", "blue", "black"]` | |
+| B | 가운데 `"green"`을 뺀다 → `["red", "blue"]` | |
+| C | 순서만 바꾼다 → `["blue", "green", "red"]` | |
+| D | 코드는 그대로 두고 `terraform plan -var 'env=dev'` | |
+| E | `by_each`의 라벨을 `by_key`로 바꾼다 (`resource "aws_ssm_parameter" "by_key"`) | |
+
+끝나면 `terraform destroy` → `6 destroyed`.
+
+<details>
+<summary>힌트</summary>
+
+- count는 번호로, for_each는 키로 구별한다. count는 번호마다 "전에는 어떤 이름이었고, 지금은 어떤 이름인가"를 표로 그려 본다.
+- SSM 파라미터의 `name`이 바뀌면 교체(`-/+`)다. 교체 1개는 add 1개와 destroy 1개로 센다. `value`나 태그만 바뀌면 `~`다.
+- Terraform은 리소스를 **주소**로 기억한다. 주소가 바뀌면 같은 리소스로 보지 않는다.
+
+</details>
+
+<details>
+<summary>답</summary>
+
+| # | 요약 줄 | 바뀌는 주소 | 이유 |
+|---|---|---|---|
+| A | `2 to add, 0 to change, 0 to destroy` | `by_count[3]`, `by_each["black"]` 추가 | 끝에 붙이면 기존 번호는 그대로다 |
+| B | `1 to add, 0 to change, 3 to destroy` | `by_count[1]` 교체(green → blue), `by_count[2]` 삭제, `by_each["green"]` 삭제 | count는 뒤의 번호가 하나씩 당겨진다 |
+| C | `2 to add, 0 to change, 2 to destroy` | `by_count[0]`(red → blue)과 `by_count[2]`(blue → red) 교체. for_each 쪽은 그대로 | `toset`은 순서가 없는 집합이라 순서를 바꿔도 같다 |
+| D | `0 to add, 6 to change, 0 to destroy` | 6개 모두 `~`. `tags_all`의 `Env`만 `"prod" -> "dev"` | `default_tags`는 모든 리소스에 붙는다(실습 3의 6번) |
+| E | `3 to add, 0 to change, 3 to destroy` | `by_each[...]` 3개 삭제, `by_key[...]` 3개 생성 | 라벨이 바뀌면 주소가 바뀐다. 옛 주소는 지우고 새 주소는 만든다. 같은 SSM 이름을 지우면서 만들므로 apply가 실패할 수도 있다. 라벨만 바꾸려면 `moved` 블록을 쓴다(실습 9) |
+
+</details>
+
+### 문제 3. 오류 메시지 읽고 고치기
+
+| 항목 | 내용 |
+|---|---|
+| 목표 | 오류 메시지에서 위치와 원인을 읽고 고친다. `validate`가 못 잡는 실수는 plan에서 찾는다 |
+| 폴더 | `d3-fix-errors/` |
+
+**과제.** 아래 코드를 공통 코드 아래에 붙인다. 실수가 6개 있다.
+
+1. `terraform validate`를 실행하고, 나온 오류를 하나씩 고친다. 고칠 때마다 아래 표에 적는다.
+2. `Success!`가 나오면 `terraform plan`을 읽고 마지막 실수를 찾는다. apply는 하지 않는다.
+
+```hcl
+variable "purpose" {
+  type    = string
+  default = "errors"
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_name = "fitjob-practice-var.purpose-${aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket" "this" {
+  name = locals.bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "this" {
+  bucket = aws_s3_bucket.this.id
+  versioning_configuration = {
+    status = "Enabled"
+  }
+}
+
+output "bucket_arn" {
+  value = aws_s3_bucket.this.arn
+}
+
+output "env" {
+  value = var.env
+}
+```
+
+| 차례 | 오류 제목 (`Error:` 뒤) | 문제가 된 코드 | 원인 | 고친 코드 |
+|---|---|---|---|---|
+| | | | | |
+
+**오류 읽는 순서**
+
+| 순서 | 볼 곳 | 예 |
+|---|---|---|
+| 1 | `Error:` 뒤 제목 | `Unsupported argument` |
+| 2 | `on main.tf line N` 아래의 코드 줄 | 어느 줄인지. 줄 번호는 내 공통 코드 모양에 따라 다르다 |
+| 3 | 마지막 설명 | `Did you mean ...?`이 답을 알려 줄 때가 많다 |
+
+<details>
+<summary>힌트</summary>
+
+- 오류는 한 번에 다 나오지 않는다. 앞의 오류를 고쳐야 다음 검사로 넘어갈 때가 있다. 처음에는 3개가 나온다.
+- 실습 3 참고 메모의 접두어 표와 Registry의 `aws_s3_bucket`·`aws_s3_bucket_versioning` 인자를 다시 본다.
+- 마지막 실수는 plan의 `bucket = "..."` 줄에 보인다. 버킷 이름이 생각한 모양인지 본다.
+
+</details>
+
+<details>
+<summary>답</summary>
+
+| 차례 | 오류 제목 | 문제가 된 코드 | 원인 | 고친 코드 |
+|---|---|---|---|---|
+| 1회 | `Reference to undeclared resource` | `${aws_caller_identity.current.account_id}` | `data.` 접두어가 빠졌다. 오류 끝에 `Did you mean the data resource data.aws_caller_identity.current?`라고 나온다 | `${data.aws_caller_identity.current.account_id}` |
+| 1회 | `Unsupported argument` | `name = locals.bucket_name` | 버킷 이름 인자는 `bucket`이다(`An argument named "name" is not expected here.`) | `bucket = ...` |
+| 1회 | `Reference to undeclared input variable` | `value = var.env` | `variable "env"` 선언이 없다 | `variable "env"` 블록을 추가한다(기본값 `"prod"`). 필요 없는 output이면 지워도 된다 |
+| 2회 | `Reference to undeclared resource` | `locals.bucket_name` | 참조는 `local.`(s 없음)이다. 접두어가 없는 이름은 리소스 종류로 읽어서 `A managed resource "locals" "bucket_name" has not been declared`라고 나온다 | `local.bucket_name` |
+| 3회 | `Unsupported argument`와 `Insufficient versioning_configuration blocks` | `versioning_configuration = {` | 중괄호 블록에는 `=`를 쓰지 않는다. 실수 하나에서 오류 2개가 나왔다(`Did you mean to define a block of type "versioning_configuration"?`) | `versioning_configuration {` |
+| plan | 오류 없음 | plan의 `bucket = "fitjob-practice-var.purpose-<계정 번호>"` | 문자열 안에서 `${}` 없이 쓴 `var.purpose`는 그냥 글자다 | `"fitjob-practice-${var.purpose}-${...}"` |
+
+`validate`는 문법과 이름만 검사한다. 값이 의도대로인지는 plan을 읽어야 안다.
+
+</details>
+
+<details>
+<summary>정답 코드 (공통 코드 아래)</summary>
+
+```hcl
+variable "purpose" {
+  type    = string
+  default = "errors"
+}
+
+variable "env" {
+  type    = string
+  default = "prod"
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_name = "fitjob-practice-${var.purpose}-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket" "this" {
+  bucket = local.bucket_name
+}
+
+resource "aws_s3_bucket_versioning" "this" {
+  bucket = aws_s3_bucket.this.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+output "bucket_arn" {
+  value = aws_s3_bucket.this.arn
+}
+
+output "env" {
+  value = var.env
+}
+```
+
+</details>
+
+### 문제 4. 맵으로 앱 설정 넣기
+
+| 항목 | 내용 |
+|---|---|
+| 목표 | 설정 여러 개를 맵 변수 하나로 받아 SSM 파라미터로 만든다 |
+| 폴더 | `d4-app-settings/` |
+| 이어지는 실제 작업 | `storage` 스택이 앱 설정을 `/fitjob/prod/app/reasons_mode` 같은 SSM 파라미터로 둔다([인프라 명세 6장](../05-infrastructure.md#6-비밀정보와-설정)) |
+
+**새 개념**
+
+| 개념 | 뜻 |
+|---|---|
+| `map(string)` | 키와 값의 짝을 모은 것. `{ log_level = "info", page_size = "20" }` |
+| 맵으로 `for_each` | `each.key`는 키, `each.value`는 값이다. 실습 4의 `toset`은 키와 값이 같았다 |
+| `{ for k, v in ... : k => v }` | 맵을 만드는 `for` 식이다. 리스트는 `[for ...]`, 맵은 `{for ...}` |
+
+**과제**
+
+1. `variables.tf`: `env`(실습 3과 같다. 기본값 `prod`, `prod`·`dev`만 허용), `app_settings`(`map(string)`, 기본값 `reasons_mode = "llm"`, `log_level = "info"`, `page_size = "20"`)
+2. `main.tf`: 공통 코드의 `Env`를 `var.env`로 바꾼다. `locals`에 접두어 `/fitjob-practice/<env>/app`을 만든다. `app_settings` 항목마다 SSM 파라미터를 하나씩 만든다. 이름은 `<접두어>/<키>`, 값은 맵의 값이다
+3. `outputs.tf`: `param_names`(파라미터 이름 리스트), `param_arns`(키 → ARN 맵)
+4. `dev.tfvars`: `env = "dev"`, `app_settings = { reasons_mode = "template" }` (일부러 하나만 적는다)
+
+<details>
+<summary>힌트 1</summary>
+
+- `for_each = var.app_settings`처럼 맵을 그대로 넘긴다. `toset()`은 필요 없다.
+- 파라미터 이름은 `"${local.접두어이름}/${each.key}"` 모양이다.
+
+</details>
+
+<details>
+<summary>힌트 2</summary>
+
+- `param_names`는 실습 4의 `each_names`와 같은 모양이다: `[for p in aws_ssm_parameter.app : p.name]`
+- `param_arns`는 `{ for k, p in aws_ssm_parameter.app : k => p.arn }`이다. for_each 리소스를 `for`로 돌면 `k`에 키, `p`에 리소스 하나가 들어온다.
+
+</details>
+
+**실행**
+
+| # | 할 일 | 기대 결과 | 배우는 것 |
+|---|---|---|---|
+| 1 | `terraform plan` | `3 to add`. 주소가 `aws_ssm_parameter.app["log_level"]`처럼 키로 나온다 | |
+| 2 | `terraform apply` | `Outputs:`에 `param_arns`(키 3개)와 `param_names`(이름 3개) | |
+| 3 | `terraform console`에서 `local.<접두어 이름>`, `keys(var.app_settings)`를 입력하고 `exit` | `"/fitjob-practice/prod/app"`, `tolist(["log_level", "page_size", "reasons_mode"])` | `keys`는 키를 알파벳순 리스트로 준다 |
+| 4 | `variables.tf`에서 `log_level` 기본값을 `"warn"`으로 바꾸고, 예상한 뒤 `plan`. 끝나면 되돌린다 | `0 to add, 1 to change, 0 to destroy`. `app["log_level"]`만 `~` | 키가 그대로면 값만 고쳐진다 |
+| 5 | 예상한 뒤 `terraform plan -var-file=dev.tfvars` (**apply하지 않는다**) | `1 to add, 0 to change, 3 to destroy` | 아래 질문 |
+| 6 | `terraform destroy` | `3 destroyed` | |
+
+**생각해 볼 질문.** 5번에서 `dev.tfvars`에는 `reasons_mode`만 적었다. `log_level`·`page_size`는 기본값이 쓰일 것 같은데 왜 삭제될까? `reasons_mode`는 왜 교체될까?
+
+<details>
+<summary>답</summary>
+
+1. 맵 변수에 값을 넘기면 기본값과 **합쳐지지 않고 통째로 바뀐다.** `dev.tfvars`의 `app_settings`는 키가 1개인 맵이다. 그래서 `log_level`·`page_size` 키가 사라지고 그 파라미터 2개가 삭제된다.
+2. `env`가 `dev`가 되어 접두어가 `/fitjob-practice/dev/app`으로 바뀐다. `app["reasons_mode"]`는 `name`이 바뀌므로 교체(`-/+`)다.
+3. 합계는 add 1(교체), destroy 3(교체 1 + 삭제 2)이다.
+
+기본값에 일부만 덮어쓰고 싶으면 변수를 둘로 나누고 `merge(기본 맵, 덮어쓸 맵)` 함수로 합친다.
+
+</details>
+
+<details>
+<summary>정답 코드</summary>
+
+`variables.tf`
+
+```hcl
+variable "env" {
+  description = "환경 이름"
+  type        = string
+  default     = "prod"
+
+  validation {
+    condition     = contains(["prod", "dev"], var.env)
+    error_message = "env는 prod 또는 dev만 쓸 수 있다."
+  }
+}
+
+variable "app_settings" {
+  description = "앱 설정. 키는 파라미터 이름 끝, 값은 파라미터 값이 된다"
+  type        = map(string)
+  default = {
+    reasons_mode = "llm"
+    log_level    = "info"
+    page_size    = "20"
+  }
+}
+```
+
+`main.tf` (공통 코드의 `Env`를 `var.env`로 바꾼 아래)
+
+```hcl
+locals {
+  param_prefix = "/fitjob-practice/${var.env}/app"
+}
+
+resource "aws_ssm_parameter" "app" {
+  for_each = var.app_settings
+  name     = "${local.param_prefix}/${each.key}"
+  type     = "String"
+  value    = each.value
+}
+```
+
+`outputs.tf`
+
+```hcl
+output "param_names" {
+  value = [for p in aws_ssm_parameter.app : p.name]
+}
+
+output "param_arns" {
+  value = { for k, p in aws_ssm_parameter.app : k => p.arn }
+}
+```
+
+`dev.tfvars`
+
+```hcl
+env = "dev"
+app_settings = {
+  reasons_mode = "template"
+}
+```
+
+</details>
+
+### 문제 5. 스위치로 켜고 끄기
+
+| 항목 | 내용 |
+|---|---|
+| 목표 | 변수 하나로 리소스를 만들거나 없앤다. count가 붙은 리소스를 `[0]`으로 참조한다 |
+| 폴더 | `d5-switch/` |
+| 이어지는 실제 작업 | 잠깐 있다 없어지는 리소스. 예: Phase 2의 DB 접속용 임시 EC2([인프라 명세 8.5](../05-infrastructure.md#85-db-접속용-임시-ec2-phase-2)) |
+
+**새 개념**
+
+| 개념 | 뜻 |
+|---|---|
+| `bool` | `true` 또는 `false` 둘 중 하나인 타입 |
+| `조건 ? 참일 때 값 : 거짓일 때 값` | 조건식. `count = var.enable_archive ? 1 : 0`이면 켜면 1개, 끄면 0개다 |
+| `aws_s3_bucket.archive[0]` | count가 붙으면 리소스가 목록이 된다. 하나뿐이어도 `[0]`을 붙여 꺼낸다 |
+| `null` | "값 없음" |
+
+**과제.** 아래 요구사항만 보고 처음부터 쓴다.
+
+> 보관용 버킷은 필요할 때만 만든다. 변수 `enable_archive`(기본값 `false`)가 `true`일 때만 버킷 `fitjob-practice-archive-<계정 번호>`를 만들고, 퍼블릭 접근 차단 4개를 켠다. 계정 번호는 코드에 적지 않는다. 버킷 이름을 output `archive_bucket`으로 내보내고, 버킷이 없으면 `null`로 한다.
+
+<details>
+<summary>힌트 1</summary>
+
+- 계정 번호는 실습 3처럼 `data "aws_caller_identity"`와 `locals`로 만든다.
+- 버킷과 퍼블릭 접근 차단 모두에 `count = var.enable_archive ? 1 : 0`을 쓴다.
+
+</details>
+
+<details>
+<summary>힌트 2</summary>
+
+- 퍼블릭 접근 차단의 `bucket`은 `aws_s3_bucket.archive[0].id`다. `[0]`을 빼면 `Missing resource instance key` 오류가 난다. 오류 설명은 `Because aws_s3_bucket.archive has "count" set, its attributes must be accessed on specific instances.`다.
+- output은 `var.enable_archive ? aws_s3_bucket.archive[0].bucket : null`이다.
+
+</details>
+
+**실행**
+
+| # | 할 일 | 기대 결과 | 배우는 것 |
+|---|---|---|---|
+| 1 | `terraform plan` | `No changes.` | 기본값이 `false`라 만들 것이 없다 |
+| 2 | 예상한 뒤 `terraform plan -var 'enable_archive=true'` | `2 to add`. 주소에 `[0]`이 붙는다(`aws_s3_bucket.archive[0]`) | |
+| 3 | `terraform apply -var 'enable_archive=true'` | `2 added`. `Outputs:`에 `archive_bucket` | |
+| 4 | 예상한 뒤 `-var` 없이 `terraform plan` | `0 to add, 0 to change, 2 to destroy` | `-var`는 기억되지 않는다. Terraform은 매번 코드와 그때 받은 값으로 비교한다 |
+| 5 | `-var` 없이 `terraform apply` → 요약 줄을 확인하고 `yes` | `2 destroyed` | 스위치를 끄면 지워진다 |
+
+**생각해 볼 질문.** 실제 스택에서 `-var 'enable_archive=true'`를 매번 손으로 넣으면 어떤 사고가 날 수 있을까? 어떻게 막을까?
+
+<details>
+<summary>답</summary>
+
+- 한 번 빼먹으면 4번처럼 지우려고 한다. 데이터가 든 버킷이면 사고다(빈 버킷이 아니면 `BucketNotEmpty`로 멈추지만, `force_destroy = true`였다면 지워진다).
+- 켜 둘 값은 `terraform.tfvars`에 적는다. 그러면 plan마다 같은 값이 들어간다.
+- 지우면 안 되는 리소스에는 `prevent_destroy`를 붙인다(실습 6).
+
+</details>
+
+<details>
+<summary>정답 코드 (공통 코드 아래)</summary>
+
+```hcl
+variable "enable_archive" {
+  description = "true일 때만 보관용 버킷을 만든다"
+  type        = bool
+  default     = false
+}
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  archive_bucket_name = "fitjob-practice-archive-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket" "archive" {
+  count  = var.enable_archive ? 1 : 0
+  bucket = local.archive_bucket_name
+}
+
+resource "aws_s3_bucket_public_access_block" "archive" {
+  count                   = var.enable_archive ? 1 : 0
+  bucket                  = aws_s3_bucket.archive[0].id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+output "archive_bucket" {
+  value = var.enable_archive ? aws_s3_bucket.archive[0].bucket : null
 }
 ```
 
